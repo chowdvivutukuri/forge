@@ -1,0 +1,68 @@
+name: Build Forge
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build iPhone + Watch app (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Forge.xcodeproj \
+            -scheme Forge \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build | tee build.log | grep -E "error:|warning: .*(Forge|Shared|Watch)|BUILD" || true
+          test -d build/Build/Products/Release-iphoneos/Forge.app
+
+      - name: Check the Watch app is embedded
+        run: |
+          APP=build/Build/Products/Release-iphoneos/Forge.app
+          ls -la "$APP/Watch" || (echo "::error::Watch app was not embedded" && exit 1)
+
+      - name: Add entitlements (ad-hoc signature, Sideloadly re-signs it)
+        run: |
+          APP=build/Build/Products/Release-iphoneos/Forge.app
+          codesign -f -s - --entitlements Support/Watch.entitlements "$APP/Watch/ForgeWatch.app"
+          codesign -f -s - --entitlements Support/iOS.entitlements "$APP"
+          codesign -d --entitlements - "$APP" || true
+
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/Forge.app Payload/
+          zip -qry Forge.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Forge-ipa
+          path: Forge.ipa
+          retention-days: 30
+
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
