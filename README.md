@@ -32,7 +32,7 @@ You'll need: a free GitHub account, a Windows PC, a USB cable for your iPhone, a
 
 ### 2. Build the app in the cloud
 1. In your repo open the **Actions** tab → **Build Forge** → **Run workflow**.
-2. Wait about 5–10 minutes for the green tick. Open the run and download **Forge-ipa** at the bottom. Unzip it to get `Forge.ipa`.
+2. Wait about 5–10 minutes for the green tick. Every successful build is published under **Releases** (right side of the repo page) — open the newest one and download `Forge.ipa`. It's also attached to the run on the Actions page as **Forge-ipa**.
    - If it fails, download **build-log** from the same page and send me the errors — I'll fix them.
    - GitHub gives private repos a monthly allowance of free build minutes; macOS minutes count extra against it, but a handful of builds a month fits comfortably.
 

@@ -9,6 +9,8 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 40
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +61,15 @@ jobs:
           name: Forge-ipa
           path: Forge.ipa
           retention-days: 30
+
+      - name: Publish to Releases (easy download link)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" Forge.ipa \
+            --title "Forge build ${{ github.run_number }}" \
+            --notes "Download Forge.ipa below and install it with Sideloadly (see README)." \
+            --latest
 
       - name: Upload build log on failure
         if: failure()
