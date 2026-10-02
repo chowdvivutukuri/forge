@@ -9,16 +9,44 @@ struct TodayView: View {
     @State private var confirmDiscard = false
     @State private var finishing = false
     @State private var restEnd: Date?
+    @AppStorage("forge.focusMode") private var focusMode = true
+    @State private var focusIndex = 0
 
     var body: some View {
         NavigationStack {
             Group {
-                if store.current != nil { activeWorkout } else { emptyState }
+                if store.current == nil {
+                    emptyState
+                } else if focusMode {
+                    FocusWorkoutView(
+                        workout: workoutBinding,
+                        index: $focusIndex,
+                        onSetCompleted: { rest in restEnd = Date().addingTimeInterval(TimeInterval(rest)) },
+                        onShowForm: { formExercise = $0 },
+                        onOverview: { withAnimation { focusMode = false } },
+                        onFinish: { confirmFinish = true },
+                        onSwap: { store.swap(itemID: $0) }
+                    )
+                } else {
+                    activeWorkout
+                }
             }
+            .onChange(of: store.current?.id) { _, _ in focusIndex = firstUnfinishedIndex }
             .forgeScreen()
             .navigationTitle(store.current?.title ?? "Today")
             .toolbar {
                 if store.current != nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            withAnimation {
+                                if !focusMode { focusIndex = firstUnfinishedIndex }
+                                focusMode.toggle()
+                            }
+                        } label: {
+                            Label(focusMode ? "Overview" : "Focus", systemImage: focusMode ? "list.bullet" : "scope")
+                                .labelStyle(.titleAndIcon)
+                        }
+                    }
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             Button("Regenerate Workout", systemImage: "arrow.clockwise") { regenerate() }
@@ -67,6 +95,10 @@ struct TodayView: View {
                 }
             }
         }
+    }
+
+    private var firstUnfinishedIndex: Int {
+        store.current?.exercises.firstIndex { !$0.sets.allSatisfy(\.done) } ?? 0
     }
 
     private func regenerate() {
@@ -165,6 +197,13 @@ struct TodayView: View {
 
             ForEach(workout.exercises) { $item in
                 Section {
+                    Button {
+                        if let i = store.current?.exercises.firstIndex(where: { $0.id == item.id }) { focusIndex = i }
+                        withAnimation { focusMode = true }
+                    } label: {
+                        Label("Do this exercise", systemImage: "scope").font(.caption.weight(.semibold))
+                    }
+                    .buttonStyle(.borderless)
                     ExerciseCard(
                         item: $item,
                         unit: store.settings.weightUnit,
