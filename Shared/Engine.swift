@@ -35,7 +35,7 @@ enum RecoveryEngine {
             let hours = now.timeIntervalSince(end) / 3600
             guard hours >= 0, hours < 120 else { continue }
             for item in workout.exercises {
-                guard let ex = item.exercise else { continue }
+                guard let ex = item.exercise, !ex.isCardio else { continue }
                 let sets = Double(item.completedSets)
                 guard sets > 0 else { continue }
                 for m in ex.primary { fatigue[m, default: 0] += sets * remaining(hours, m) }
@@ -75,12 +75,37 @@ struct WorkoutGenerator {
     }
 
     func generate(focus: SplitFocus, recovery: [Muscle: Double], programDay: Int? = nil) -> Workout {
+        let recentIDs = Set(history.suffix(3).flatMap { $0.exercises.map(\.exerciseID) })
+        if focus == .cardio {
+            var entries: [WorkoutExercise] = []
+            if let ex = Cardio.choose(role: .session, settings: settings, available: availableExercises, recentIDs: recentIDs) {
+                entries.append(makeCardioEntry(for: ex, role: .session))
+            }
+            return Workout(title: "Cardio", exercises: entries, equipmentProfileName: settings.activeProfile.name, programDay: programDay)
+        }
+        var workout = generateStrength(focus: focus, recovery: recovery, programDay: programDay)
+        switch settings.cardioPlan {
+        case .off:
+            break
+        case .warmup:
+            if let ex = Cardio.choose(role: .warmup, settings: settings, available: availableExercises, recentIDs: []) {
+                workout.exercises.insert(makeCardioEntry(for: ex, role: .warmup), at: 0)
+            }
+        case .finisher:
+            if let ex = Cardio.choose(role: .finisher, settings: settings, available: availableExercises, recentIDs: recentIDs) {
+                workout.exercises.append(makeCardioEntry(for: ex, role: .finisher))
+            }
+        }
+        return workout
+    }
+
+    private func generateStrength(focus: SplitFocus, recovery: [Muscle: Double], programDay: Int?) -> Workout {
         let targets = Set(focus.muscles)
         var muscleWeight: [Muscle: Double] = [:]
         for m in targets { muscleWeight[m] = recovery[m] ?? 1 }
         let recentIDs = Set(history.suffix(2).flatMap { $0.exercises.map(\.exerciseID) })
 
-        var pool = availableExercises.filter { !Set($0.primary).isDisjoint(with: targets) }
+        var pool = availableExercises.filter { !$0.isCardio && !Set($0.primary).isDisjoint(with: targets) }
         var chosen: [Exercise] = []
         let count = max(3, min(10, settings.exercisesPerWorkout))
 
@@ -133,7 +158,24 @@ struct WorkoutGenerator {
         return out
     }
 
+    func makeCardioEntry(for ex: Exercise, role: Cardio.Role) -> WorkoutExercise {
+        let last = lastCardio(ex.id)
+        let plan = Cardio.plan(ex.id, role: role, settings: settings, last: last)
+        let set = LoggedSet(reps: 0, weight: 0, minutes: plan.minutes, speed: plan.speed, incline: plan.incline)
+        return WorkoutExercise(exerciseID: ex.id, sets: [set], restSeconds: 0, note: plan.note, targetMinutes: plan.minutes)
+    }
+
+    func lastCardio(_ id: String) -> LoggedSet? {
+        for workout in history.reversed() where workout.finishedAt != nil {
+            if let s = workout.exercises.first(where: { $0.exerciseID == id })?.sets.first(where: { $0.done && ($0.minutes ?? 0) > 0 }) {
+                return s
+            }
+        }
+        return nil
+    }
+
     func makeEntry(for ex: Exercise) -> WorkoutExercise {
+        if ex.isCardio { return makeCardioEntry(for: ex, role: .session) }
         let goal = settings.goal
         let reps = ex.isCompound ? goal.targetReps : max(goal.targetReps, 10)
         let setCount = ex.isCompound ? goal.sets : 3
@@ -180,7 +222,7 @@ struct WorkoutGenerator {
 
     /// Estimated 1RM from body weight, level and sex, in the user's unit. Nil when there's no standard.
     func predictedOneRepMax(_ ex: Exercise) -> Double? {
-        guard !ex.isBodyweight else { return nil }
+        guard !ex.isBodyweight, !ex.isCardio else { return nil }
         let ratio = StrengthStandards.ratios[ex.id] ?? defaultRatio(ex)
         let bw = bodyWeightKg ?? 75
         let kg = ratio * bw * settings.experience.strengthFactor * settings.sex.strengthFactor(lowerBody: ex.isLowerBody)
@@ -218,7 +260,7 @@ struct WorkoutGenerator {
     /// Next working weight. Uses your last session when there is one (double progression),
     /// otherwise a starting estimate from your profile, scaled to how you've actually been lifting.
     func suggestedWeight(for ex: Exercise, reps: Int) -> Double {
-        if ex.isBodyweight { return 0 }
+        if ex.isBodyweight || ex.isCardio { return 0 }
         if let last = lastPerformance(ex.id) {
             let done = last.sets.filter { $0.done && $0.weight > 0 }
             let top = done.map(\.weight).max() ?? 0
@@ -247,9 +289,12 @@ struct WorkoutGenerator {
     /// Swaps that hit at least one of the same primary muscles with available equipment.
     func alternatives(to exerciseID: String, excluding used: Set<String>) -> [Exercise] {
         guard let ex = ExerciseLibrary.byID[exerciseID] else { return [] }
+        if ex.isCardio {
+            return availableExercises.filter { $0.isCardio && $0.id != ex.id && !used.contains($0.id) }
+        }
         let primary = Set(ex.primary)
         return availableExercises.filter {
-            $0.id != ex.id && !used.contains($0.id) && !primary.isDisjoint(with: $0.primary)
+            !$0.isCardio && $0.id != ex.id && !used.contains($0.id) && !primary.isDisjoint(with: $0.primary)
         }
     }
 }
@@ -260,6 +305,7 @@ enum SyncKey {
     static let workout = "workout"     // Data (JSON Workout); empty Data = no current workout
     static let finished = "finished"   // Data (JSON Workout) finished on the watch
     static let useKg = "useKg"         // Bool
+    static let abhi = "abhi"           // Bool, purple theme
     static let sentAt = "sentAt"       // Double, forces context changes to deliver
 }
 

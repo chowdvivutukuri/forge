@@ -62,7 +62,7 @@ enum Muscle: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
 }
 
 enum MuscleGroup: String, CaseIterable, Identifiable, Sendable {
-    case chest, back, shoulders, arms, legs, core
+    case chest, back, shoulders, arms, legs, core, cardio
     var id: String { rawValue }
     var displayName: String { rawValue.capitalized }
 }
@@ -76,6 +76,8 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
     case cable, smith, legPress, hackSquat, legExtension, legCurl, chestPress, pecDeck, shoulderPress
     case latPulldown, cableRow, rowMachine, assistedPullup, preacher, abductor, adductor, calfMachine
     case abCrunch, backExtension
+    // Cardio machines
+    case treadmill, elliptical
     /// Older saved setups used one "machines" switch; it still means "every machine".
     case machine
 
@@ -85,7 +87,8 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
     static let machines: [Equipment] = [.cable, .smith, .legPress, .hackSquat, .legExtension, .legCurl, .chestPress,
                                         .pecDeck, .shoulderPress, .latPulldown, .cableRow, .rowMachine, .assistedPullup,
                                         .preacher, .abductor, .adductor, .calfMachine, .abCrunch, .backExtension]
-    static var selectable: [Equipment] { freeWeights + machines }
+    static let cardioMachines: [Equipment] = [.treadmill, .elliptical]
+    static var selectable: [Equipment] { freeWeights + machines + cardioMachines }
 
     var displayName: String {
         switch self {
@@ -116,6 +119,8 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
         case .calfMachine: return "Calf Raise Machine"
         case .abCrunch: return "Ab Crunch Machine"
         case .backExtension: return "Back Extension / Roman Chair"
+        case .treadmill: return "Treadmill"
+        case .elliptical: return "Elliptical"
         case .machine: return "All Machines"
         }
     }
@@ -131,6 +136,8 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
         case .bands: return "lasso"
         case .bodyweight: return "figure.walk"
         case .cable: return "cable.connector"
+        case .treadmill: return "figure.run"
+        case .elliptical: return "figure.elliptical"
         default: return "gearshape.2.fill"
         }
     }
@@ -138,7 +145,7 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
     /// True when the given set of equipment covers this item.
     func isCovered(by have: Set<Equipment>) -> Bool {
         if self == .bodyweight || have.contains(self) { return true }
-        if have.contains(.machine), Equipment.machines.contains(self) { return true }
+        if have.contains(.machine), Equipment.machines.contains(self) || Equipment.cardioMachines.contains(self) { return true }
         // A cable station can do pulldowns and seated rows with the right attachment.
         if (self == .latPulldown || self == .cableRow), have.contains(.cable) { return true }
         return false
@@ -270,7 +277,7 @@ struct StrengthTarget: Codable, Identifiable, Hashable, Sendable {
 // MARK: - Splits and programs
 
 enum SplitFocus: String, Codable, CaseIterable, Identifiable, Sendable {
-    case auto, fullBody, upper, lower, push, pull, legs, chest, back, shoulders, arms, shouldersArms
+    case auto, fullBody, upper, lower, push, pull, legs, chest, back, shoulders, arms, shouldersArms, cardio
 
     var id: String { rawValue }
     static var pickable: [SplitFocus] { allCases.filter { $0 != .auto } }
@@ -289,6 +296,7 @@ enum SplitFocus: String, Codable, CaseIterable, Identifiable, Sendable {
         case .shoulders: return "Shoulders"
         case .arms: return "Arms"
         case .shouldersArms: return "Shoulders & Arms"
+        case .cardio: return "Cardio"
         }
     }
     var muscles: [Muscle] {
@@ -304,6 +312,7 @@ enum SplitFocus: String, Codable, CaseIterable, Identifiable, Sendable {
         case .shoulders: return [.frontDelts, .sideDelts, .rearDelts, .traps]
         case .arms: return [.biceps, .triceps, .forearms]
         case .shouldersArms: return [.frontDelts, .sideDelts, .rearDelts, .biceps, .triceps]
+        case .cardio: return []
         }
     }
 }
@@ -376,6 +385,19 @@ enum ProgramSplit: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
+enum CardioPlan: String, Codable, CaseIterable, Identifiable, Sendable {
+    case off, warmup, finisher
+
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .off: return "No cardio"
+        case .warmup: return "Warm-up (5–10 min)"
+        case .finisher: return "Finisher (10–20 min)"
+        }
+    }
+}
+
 // MARK: - Exercises and workouts
 
 struct Exercise: Codable, Identifiable, Hashable, Sendable {
@@ -392,6 +414,8 @@ struct Exercise: Codable, Identifiable, Hashable, Sendable {
         equipment.allSatisfy { [.bodyweight, .pullupBar, .dipStation, .bench, .bands, .assistedPullup].contains($0) }
     }
     var usesMachine: Bool { equipment.contains { Equipment.machines.contains($0) } }
+    var isCardio: Bool { equipment.contains { Equipment.cardioMachines.contains($0) } }
+    var group: MuscleGroup { isCardio ? .cardio : (primary.first?.group ?? .core) }
     var isLowerBody: Bool { primary.contains { $0.group == .legs } }
 }
 
@@ -400,6 +424,14 @@ struct LoggedSet: Codable, Identifiable, Hashable, Sendable {
     var reps: Int
     var weight: Double
     var done: Bool = false
+    // Cardio entries use these instead of reps/weight.
+    var minutes: Double?
+    /// Treadmill: speed (mph or km/h). Elliptical: resistance level.
+    var speed: Double?
+    /// Treadmill incline, %.
+    var incline: Double?
+    /// Miles or km.
+    var distance: Double?
 }
 
 struct WorkoutExercise: Codable, Identifiable, Hashable, Sendable {
@@ -410,10 +442,15 @@ struct WorkoutExercise: Codable, Identifiable, Hashable, Sendable {
     /// What the app suggested when the workout was planned.
     var suggestedWeight: Double?
     var targetReps: Int?
+    /// Extra instructions, e.g. the interval pattern for cardio.
+    var note: String?
+    /// Cardio target minutes when it was planned.
+    var targetMinutes: Double?
 
-    init(id: UUID = UUID(), exerciseID: String, sets: [LoggedSet], restSeconds: Int, suggestedWeight: Double? = nil, targetReps: Int? = nil) {
+    init(id: UUID = UUID(), exerciseID: String, sets: [LoggedSet], restSeconds: Int, suggestedWeight: Double? = nil,
+         targetReps: Int? = nil, note: String? = nil, targetMinutes: Double? = nil) {
         self.id = id; self.exerciseID = exerciseID; self.sets = sets; self.restSeconds = restSeconds
-        self.suggestedWeight = suggestedWeight; self.targetReps = targetReps
+        self.suggestedWeight = suggestedWeight; self.targetReps = targetReps; self.note = note; self.targetMinutes = targetMinutes
     }
 
     init(from decoder: Decoder) throws {
@@ -424,11 +461,15 @@ struct WorkoutExercise: Codable, Identifiable, Hashable, Sendable {
         restSeconds = c.value(.restSeconds, 90)
         suggestedWeight = c.value(.suggestedWeight, nil)
         targetReps = c.value(.targetReps, nil)
+        note = c.value(.note, nil)
+        targetMinutes = c.value(.targetMinutes, nil)
     }
 
     var exercise: Exercise? { ExerciseLibrary.byID[exerciseID] }
     var name: String { exercise?.name ?? exerciseID }
     var completedSets: Int { sets.filter(\.done).count }
+    var isCardio: Bool { exercise?.isCardio ?? false }
+    var cardioMinutes: Double { sets.filter(\.done).compactMap(\.minutes).reduce(0, +) }
 }
 
 struct Workout: Codable, Identifiable, Hashable, Sendable {
@@ -506,6 +547,9 @@ struct UserSettings: Codable, Equatable, Sendable {
     var targetDate: Date?
     var strengthTargets: [StrengthTarget] = []
     var weighInReminder: Bool = false
+    // Cardio and looks
+    var cardioPlan: CardioPlan = .off
+    var abhiMode: Bool = false
     // Music
     var spotifyClientID: String = ""
     var spotifyPlaylistURI: String = ""
@@ -537,6 +581,8 @@ struct UserSettings: Codable, Equatable, Sendable {
         targetDate = c.value(.targetDate, nil)
         strengthTargets = c.value(.strengthTargets, d.strengthTargets)
         weighInReminder = c.value(.weighInReminder, d.weighInReminder)
+        cardioPlan = c.value(.cardioPlan, d.cardioPlan)
+        abhiMode = c.value(.abhiMode, d.abhiMode)
         spotifyClientID = c.value(.spotifyClientID, d.spotifyClientID)
         spotifyPlaylistURI = c.value(.spotifyPlaylistURI, d.spotifyPlaylistURI)
     }
@@ -547,6 +593,8 @@ struct UserSettings: Codable, Equatable, Sendable {
     var availableEquipment: Set<Equipment> { activeProfile.equipment.union([.bodyweight]) }
     var weightUnit: String { useKilograms ? "kg" : "lb" }
     var weightStep: Double { useKilograms ? 2.5 : 5 }
+    var speedUnit: String { useKilograms ? "km/h" : "mph" }
+    var distanceUnit: String { useKilograms ? "km" : "mi" }
 
     var schedule: [SplitFocus] { split.schedule(days: daysPerWeek) }
     var nextFocus: SplitFocus {

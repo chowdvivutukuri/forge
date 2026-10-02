@@ -35,6 +35,8 @@ struct FormPattern: Decodable {
     let cx: Double
     let f: [[Double]]
     let pr: [FormPrim]
+    /// Looping patterns (walking, running, elliptical) play straight through instead of back and forth.
+    let loop: Bool?
 
     func frame(at t: Double) -> [Double] {
         let n = f.count
@@ -52,6 +54,7 @@ struct FormPattern: Decodable {
     /// Back-and-forth loop with short pauses at each end.
     func phase(_ time: Double) -> Double {
         let u = time.truncatingRemainder(dividingBy: T) / T
+        if loop == true { return u }
         let tri = u < 0.5 ? u * 2 : 2 - u * 2
         let x = max(0, min(1, (tri - 0.08) / 0.84))
         return 0.5 - 0.5 * cos(Double.pi * x)
@@ -272,6 +275,12 @@ enum FormScene {
                 let u = norm((P0.0 - P1.0, P0.1 - P1.1, P0.2 - P1.2))
                 let a = pr(add(P0, u, 3)), b = pr(add(P1, u, -3))
                 items.append(FormOp(kind: .line, pts: [cg(a), cg(b)], width: 4.4, role: .pad, depth: (a.2 + b.2) / 2 + 0.5))
+            case "pedal":
+                for l in legs {
+                    let a = pr(add(pt(l[2]), (-3.0, -2.2, 0.0)))
+                    let b = pr(add(pt(l[3]), (1.5, -1.6, 0.0)))
+                    items.append(FormOp(kind: .line, pts: [cg(a), cg(b)], width: 2.2, role: .steel, depth: (a.2 + b.2) / 2 - 0.3))
+                }
             case "sled":
                 let A0 = pt(legs[0][2]), T0 = pt(legs[0][3]), A1 = pt(legs[1][2]), T1 = pt(legs[1][3])
                 let m = mid([A0, T0, A1, T1])
@@ -323,7 +332,7 @@ enum FormScene {
 
 struct FormPalette {
     var ink: Color = .primary
-    var accent: Color = Color(red: 0.89, green: 0.35, blue: 0.12)
+    var accent: Color = ForgeColors.accent
     var background: Color = Color(white: 0.5).opacity(0.0)
     var face: Color = .white
 
@@ -430,5 +439,22 @@ enum FormAngle: String, CaseIterable, Identifiable {
         case .front: return 0
         case .back: return 180
         }
+    }
+}
+
+/// App-wide accent colours. "Abhi mode" switches everything to purple.
+enum ForgeColors {
+    static var abhiMode: Bool = UserDefaults.standard.bool(forKey: "forge.abhiMode")
+
+    static let orange = Color(red: 0.89, green: 0.35, blue: 0.12)
+    static let purple = Color(red: 0.55, green: 0.27, blue: 0.93)
+
+    static var accent: Color { abhiMode ? purple : orange }
+    /// Used where the app would otherwise show green for "good".
+    static var positive: Color { abhiMode ? Color(red: 0.70, green: 0.45, blue: 1.0) : .green }
+
+    static func setAbhiMode(_ on: Bool) {
+        abhiMode = on
+        UserDefaults.standard.set(on, forKey: "forge.abhiMode")
     }
 }

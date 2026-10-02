@@ -10,9 +10,11 @@ Forge plans strength workouts around how recovered each muscle is and the equipm
 - **Program** – pick a split (Full Body, Upper/Lower, Push/Pull/Legs, Upper/Lower + PPL, or a body-part split) and days per week; Forge recommends one and lays out Day 1 → Day N with the exercises, sets and weights, plus suggested weekdays.
 - **Smart weights** – starting weights come from your level, body weight and sex. After that, each suggestion follows what you actually log: hit every rep and it goes up; fall well short and it comes down. If you consistently lift less (or more) than suggested, starting weights for new exercises are rescaled to match you.
 - **Your machines** – type the machines at your gym ("pec deck, hack squat, smith machine, cable crossover"). Forge recognises common names, lets you match anything it doesn't know, and only plans exercises you can do.
-- **Form animations** – all 88 exercises animated in 3D. Switch Side / Front / Back / Turn, or drag to rotate. Form cues for each.
+- **Form animations** – all 93 exercises animated in 3D. Switch Side / Front / Back / Turn, or drag to rotate. Form cues for each.
 - **Progress** – body weight trend against your target, weekly consistency, strength-target progress bars, volume, and full workout history.
 - **Weigh-ins** – prompt on the Workout tab when it's been a week, optional Sunday reminder, saved to Apple Health if enabled.
+- **Cardio** – treadmill (incline walk, run, intervals) and elliptical (steady, intervals). Add cardio to your program as a warm-up or finisher, or start a cardio-only session. Log minutes, speed or resistance, and incline; the next suggestion builds on what you did. Calories and distance are estimated and saved to Apple Health as walking, running or elliptical workouts.
+- **Abhi mode** – Settings → Look. Turns the whole app purple: colours, charts, recovery map, the Watch app and the home-screen icon (iOS asks you to confirm the icon change).
 - **Recovery** – body map coloured from fatigued to fresh.
 - **Apple Health**, **iCloud Drive backup** and **Spotify** as before.
 
@@ -80,7 +82,7 @@ Free Apple ID installs expire after 7 days. Plug in, open Sideloadly, drag in th
 ```
 project.yml          Xcode project definition (XcodeGen)
 .github/workflows/   Cloud build → Forge.ipa
-Shared/              Models, 88-exercise library, strength standards, recovery engine, workout generator,
+Shared/              Models, 93-exercise library, strength standards, recovery engine, workout generator,
                      machine-name recognition, form animation renderer + forms.json
 tools/forms/         Pose data that generates the animations (forms.py) and the browser preview
 iOS/                 iPhone app (SwiftUI): store, Health, Watch sync, iCloud backup, Spotify, screens

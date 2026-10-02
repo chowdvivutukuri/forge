@@ -17,6 +17,8 @@ enum MachineCatalog {
 
     /// Checked in order; the first rule whose keywords appear wins, so specific names come first.
     private static let rules: [([String], [Equipment])] = [
+        (["treadmill", "tread mill", "threadmill", "thread mill", "treadmil", "running machine", "incline trainer"], [.treadmill]),
+        (["elliptical", "eliptical", "elliptic", "cross trainer", "cross-trainer", "crosstrainer", "arc trainer"], [.elliptical]),
         (["assisted", "gravitron"], [.assistedPullup]),
         (["smith"], [.smith]),
         (["hack squat", "hack-squat", "pendulum", "v-squat", "v squat", "belt squat"], [.hackSquat]),
@@ -52,7 +54,7 @@ enum MachineCatalog {
         (["triceps", "tricep"], [.cable]),
     ]
 
-    private static let cardioWords = ["treadmill", "bike", "cycle", "elliptical", "rower", "rowing machine", "stair", "step mill",
+    private static let cardioWords = ["bike", "cycle", "rower", "rowing machine", "stair", "step mill",
                                       "stepper", "ski erg", "skierg", "assault", "airdyne", "spin"]
 
     static func split(_ text: String) -> [String] {
@@ -74,7 +76,8 @@ enum MachineCatalog {
                 result.recognized.append(Match(text: item, equipment: [eq]))
                 continue
             }
-            if cardioWords.contains(where: { key.contains($0) }) && !key.contains("row machine") && !key.contains("seated row") {
+            let cardioMachine = ["tread", "ellip", "cross trainer", "cross-trainer", "crosstrainer", "arc trainer", "running machine"].contains { key.contains($0) }
+            if !cardioMachine && cardioWords.contains(where: { key.contains($0) }) && !key.contains("row machine") && !key.contains("seated row") {
                 result.cardio.append(item)
                 continue
             }

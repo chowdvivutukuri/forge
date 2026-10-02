@@ -1,9 +1,15 @@
 import Foundation
+import UIKit
 import SwiftUI
 
 @MainActor
 final class WorkoutStore: ObservableObject {
-    @Published var settings: UserSettings { didSet { stateChanged(pushToWatch: true) } }
+    @Published var settings: UserSettings {
+        didSet {
+            if oldValue.abhiMode != settings.abhiMode { applyLook(settings.abhiMode) }
+            stateChanged(pushToWatch: true)
+        }
+    }
     @Published private(set) var history: [Workout] { didSet { stateChanged(pushToWatch: false) } }
     @Published var current: Workout? { didSet { stateChanged(pushToWatch: true) } }
     @Published private(set) var weighIns: [WeighIn] { didSet { stateChanged(pushToWatch: false) } }
@@ -36,6 +42,7 @@ final class WorkoutStore: ObservableObject {
             current = nil
             weighIns = []
         }
+        ForgeColors.setAbhiMode(settings.abhiMode)
         connectivity.onWorkoutUpdate = { [weak self] w in self?.receiveFromWatch(w, finished: false) }
         connectivity.onWorkoutFinished = { [weak self] w in self?.receiveFromWatch(w, finished: true) }
         connectivity.onActivated = { [weak self] in
@@ -62,6 +69,17 @@ final class WorkoutStore: ObservableObject {
         }
         if let data = snapshot() { backup.scheduleBackup(data) }
         if pushToWatch { connectivity.push(current: current, settings: settings) }
+    }
+
+    /// Abhi mode: purple everything, including the home-screen icon.
+    private func applyLook(_ purple: Bool) {
+        ForgeColors.setAbhiMode(purple)
+        let app = UIApplication.shared
+        guard app.supportsAlternateIcons else { return }
+        let wanted: String? = purple ? "AppIconPurple" : nil
+        if app.alternateIconName != wanted {
+            app.setAlternateIconName(wanted) { _ in }
+        }
     }
 
     func backupNow() {
@@ -174,12 +192,57 @@ final class WorkoutStore: ObservableObject {
             var known = latestWeightKg
             if known == nil { known = await health.latestBodyMassKg() }
             let kg = known ?? 75
-            let saved = await health.saveStrengthWorkout(start: start, end: end, bodyMassKg: kg)
-            if saved, let i = history.firstIndex(where: { $0.id == w.id }) {
+            let total = await saveToHealth(w, start: start, end: end, bodyKg: kg)
+            if let total, let i = history.firstIndex(where: { $0.id == w.id }) {
                 history[i].savedToHealth = true
-                history[i].calories = HealthManager.estimatedCalories(start: start, end: end, bodyMassKg: kg)
+                history[i].calories = total
             }
         }
+    }
+
+    /// Saves cardio blocks as walking/running/elliptical workouts and the rest as strength training,
+    /// without overlapping so calories aren't counted twice. Returns total kcal, or nil if nothing saved.
+    private func saveToHealth(_ w: Workout, start: Date, end: Date, bodyKg: Double) async -> Double? {
+        var strengthStart = start
+        var strengthEnd = end
+        var total = 0.0
+        var savedAny = false
+        let cardio = w.exercises.enumerated().filter { $0.element.isCardio && $0.element.cardioMinutes > 0 }
+        let strengthCount = w.exercises.filter { !$0.isCardio && $0.completedSets > 0 }.count
+        for (index, item) in cardio {
+            guard let s = item.sets.first(where: \.done) else { continue }
+            let minutes = s.minutes ?? 0
+            let seconds = minutes * 60
+            let isWarmup = index == 0 && strengthCount > 0
+            let blockStart: Date
+            let blockEnd: Date
+            if isWarmup {
+                blockStart = strengthStart
+                blockEnd = strengthStart.addingTimeInterval(seconds)
+                strengthStart = blockEnd
+            } else {
+                blockEnd = strengthEnd
+                blockStart = strengthEnd.addingTimeInterval(-seconds)
+                strengthEnd = blockStart
+            }
+            let kcal = Cardio.calories(item.exerciseID, minutes: minutes, speed: s.speed, incline: s.incline,
+                                       bodyKg: bodyKg, useKm: settings.useKilograms)
+            var meters: Double?
+            if let d = s.distance ?? Cardio.distance(item.exerciseID, minutes: minutes, speed: s.speed) {
+                meters = d * (settings.useKilograms ? 1000 : 1609.34)
+            }
+            if await health.saveCardioWorkout(exerciseID: item.exerciseID, start: blockStart, end: blockEnd, kcal: kcal, distanceMeters: meters) {
+                total += kcal
+                savedAny = true
+            }
+        }
+        if strengthCount > 0, strengthEnd > strengthStart {
+            if await health.saveStrengthWorkout(start: strengthStart, end: strengthEnd, bodyMassKg: bodyKg) {
+                total += HealthManager.estimatedCalories(start: strengthStart, end: strengthEnd, bodyMassKg: bodyKg)
+                savedAny = true
+            }
+        }
+        return savedAny ? total : nil
     }
 
     private func advanceProgram(after w: Workout) {

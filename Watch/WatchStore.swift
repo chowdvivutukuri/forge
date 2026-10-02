@@ -5,6 +5,7 @@ import WatchConnectivity
 final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     @Published var workout: Workout? { didSet { persist() } }
     @Published var useKilograms = false
+    @Published var abhiMode = ForgeColors.abhiMode
 
     private let workoutKey = "forge.watch.workout"
     private let kgKey = "forge.watch.kg"
@@ -22,6 +23,11 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     var unit: String { useKilograms ? "kg" : "lb" }
+    var unitSettings: UserSettings {
+        var s = UserSettings()
+        s.useKilograms = useKilograms
+        return s
+    }
     var weightStep: Double { useKilograms ? 2.5 : 5 }
 
     private func persist() {
@@ -41,6 +47,16 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
         w.exercises[i].sets[j].reps = reps
         w.exercises[i].sets[j].weight = weight
         w.exercises[i].sets[j].done = true
+        commit(&w)
+    }
+
+    func logCardio(itemID: UUID, minutes: Double) {
+        guard var w = workout, let i = w.exercises.firstIndex(where: { $0.id == itemID }) else { return }
+        if w.exercises[i].sets.isEmpty { w.exercises[i].sets.append(LoggedSet(reps: 0, weight: 0)) }
+        w.exercises[i].sets[0].minutes = minutes
+        w.exercises[i].sets[0].done = true
+        let s = w.exercises[i].sets[0]
+        w.exercises[i].sets[0].distance = Cardio.distance(w.exercises[i].exerciseID, minutes: minutes, speed: s.speed)
         commit(&w)
     }
 
@@ -97,6 +113,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
         var hasWorkoutKey = false
         var workoutData: Data?
         var useKg: Bool?
+        var abhi: Bool?
     }
 
     nonisolated private static func extract(_ payload: [String: Any]) -> Received {
@@ -106,10 +123,15 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
             r.workoutData = d
         }
         r.useKg = payload[SyncKey.useKg] as? Bool
+        r.abhi = payload[SyncKey.abhi] as? Bool
         return r
     }
 
     private func apply(_ r: Received) {
+        if let purple = r.abhi, purple != abhiMode {
+            ForgeColors.setAbhiMode(purple)
+            abhiMode = purple
+        }
         if let kg = r.useKg {
             useKilograms = kg
             UserDefaults.standard.set(kg, forKey: kgKey)

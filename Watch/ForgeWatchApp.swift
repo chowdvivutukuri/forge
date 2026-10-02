@@ -11,7 +11,8 @@ struct ForgeWatchApp: App {
             WatchRootView()
                 .environmentObject(store)
                 .environmentObject(workoutManager)
-                .tint(Color(red: 1.0, green: 0.42, blue: 0.16))
+                .tint(ForgeColors.accent)
+                .id(store.abhiMode)
         }
     }
 }
@@ -56,9 +57,9 @@ struct WatchWorkoutView: View {
                         NavigationLink(value: item.id) {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.name).font(.headline).lineLimit(2)
-                                Text("\(item.completedSets)/\(item.sets.count) sets")
+                                Text(item.isCardio ? Cardio.summary(item, settings: store.unitSettings) : "\(item.completedSets)/\(item.sets.count) sets")
                                     .font(.caption)
-                                    .foregroundStyle(item.completedSets == item.sets.count ? Color.green : Color.secondary)
+                                    .foregroundStyle(item.completedSets == item.sets.count ? ForgeColors.positive : Color.secondary)
                             }
                         }
                     }

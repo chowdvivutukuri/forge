@@ -171,6 +171,7 @@ struct OnboardingView: View {
                 ForEach(TrainingGoal.allCases) { goal in
                     choiceRow(title: goal.displayName, detail: goal.blurb, selected: draft.goal == goal) {
                         draft.goal = goal
+                        if mode == .firstRun { draft.cardioPlan = (goal == .fatLoss || goal == .endurance) ? .finisher : .off }
                     }
                 }
             }
@@ -209,8 +210,13 @@ struct OnboardingView: View {
                 Picker("Session length", selection: $draft.sessionMinutes) {
                     ForEach([30, 45, 60, 75, 90], id: \.self) { Text("\($0) min").tag($0) }
                 }
+                Picker("Cardio", selection: $draft.cardioPlan) {
+                    ForEach(CardioPlan.allCases) { Text($0.displayName).tag($0) }
+                }
             } header: {
                 Text("How often can you train?")
+            } footer: {
+                Text("Cardio uses a treadmill or elliptical if your equipment has one. You can also start a cardio-only session any time.")
             }
             Section {
                 ForEach(ProgramSplit.allCases) { split in
@@ -300,6 +306,7 @@ struct OnboardingView: View {
                 LabeledContent("Level", value: draft.experience.displayName)
                 LabeledContent("Program", value: "\(draft.split.displayName), \(draft.daysPerWeek) days")
                 LabeledContent("Exercises per workout", value: "\(UserSettings.exercises(forMinutes: draft.sessionMinutes))")
+                LabeledContent("Cardio", value: draft.cardioPlan.displayName)
                 if draft.profiles.indices.contains(profileIndex) {
                     LabeledContent("Equipment", value: draft.profiles[profileIndex].name)
                 }

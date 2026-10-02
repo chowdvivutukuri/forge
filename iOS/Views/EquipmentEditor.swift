@@ -52,7 +52,7 @@ struct EquipmentEditor: View {
                     }
                 }
                 if !r.cardio.isEmpty {
-                    Text("Cardio machines noted (not used for strength plans): \(r.cardio.joined(separator: ", "))")
+                    Text("Not planned yet (Forge plans treadmill and elliptical cardio): \(r.cardio.joined(separator: ", "))")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Button {
@@ -116,14 +116,14 @@ struct Chip: View {
     }
     private var background: Color {
         switch style {
-        case .good: return Color.green.opacity(0.15)
+        case .good: return ForgeColors.positive.opacity(0.15)
         case .warn: return Color.orange.opacity(0.18)
         case .neutral: return Color.secondary.opacity(0.12)
         }
     }
     private var foreground: Color {
         switch style {
-        case .good: return .green
+        case .good: return ForgeColors.positive
         case .warn: return .orange
         case .neutral: return .primary
         }

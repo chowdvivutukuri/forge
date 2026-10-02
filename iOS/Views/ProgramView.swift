@@ -34,10 +34,15 @@ struct ProgramView: View {
                     Picker("Goal", selection: $store.settings.goal) {
                         ForEach(TrainingGoal.allCases) { Text($0.displayName).tag($0) }
                     }
+                    Picker("Cardio", selection: $store.settings.cardioPlan) {
+                        ForEach(CardioPlan.allCases) { Text($0.displayName).tag($0) }
+                    }
                 } header: {
                     Text("Your plan")
                 } footer: {
-                    Text(store.settings.split.blurb + " ★ = recommended for \(store.settings.daysPerWeek) days.")
+                    let hasCardio = Equipment.cardioMachines.contains { $0.isCovered(by: store.settings.activeProfile.equipment) }
+                    Text(store.settings.split.blurb + " ★ = recommended for \(store.settings.daysPerWeek) days."
+                         + (store.settings.cardioPlan != .off && !hasCardio ? " Cardio needs a treadmill or elliptical in your equipment." : ""))
                 }
 
                 Section {
@@ -75,11 +80,19 @@ struct ProgramView: View {
 }
 
 private struct DayCard: View {
+    @EnvironmentObject var store: WorkoutStore
     let index: Int
     let workout: Workout
     let isNext: Bool
     let weekday: String?
     let unit: String
+
+    private func detail(_ item: WorkoutExercise) -> String {
+        if item.isCardio { return Cardio.summary(item, settings: store.settings) }
+        let w = item.sets.first?.weight ?? 0
+        let base = "\(item.sets.count)×\(item.sets.first?.reps ?? 0)"
+        return w > 0 ? base + " · \(Theme.formatWeight(w)) \(unit)" : base
+    }
     var onForm: (String) -> Void
     var onStart: () -> Void
 
@@ -101,8 +114,7 @@ private struct DayCard: View {
                             .frame(width: 34, height: 34)
                         Text(item.name).foregroundStyle(.primary)
                         Spacer()
-                        let w = item.sets.first?.weight ?? 0
-                        Text("\(item.sets.count)×\(item.sets.first?.reps ?? 0)\(w > 0 ? " · \(Theme.formatWeight(w)) \(unit)" : "")")
+                        Text(detail(item))
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                     }
                 }

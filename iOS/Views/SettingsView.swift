@@ -28,6 +28,16 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle(isOn: $store.settings.abhiMode) {
+                        Label("Abhi mode", systemImage: "paintpalette.fill")
+                    }
+                } header: {
+                    Text("Look")
+                } footer: {
+                    Text("Turns the whole app purple — colours, charts, recovery map, the Watch app and the app icon.")
+                }
+
+                Section {
                     ForEach(store.settings.profiles) { profile in
                         NavigationLink {
                             EquipmentProfileEditor(profileID: profile.id)
@@ -185,7 +195,7 @@ struct ICloudBackupSection: View {
                 Text(err).font(.caption).foregroundStyle(.red)
             }
             if let msg = restoredMessage {
-                Text(msg).font(.caption).foregroundStyle(.green)
+                Text(msg).font(.caption).foregroundStyle(ForgeColors.positive)
             }
         } header: {
             Text("iCloud Drive")
@@ -223,7 +233,7 @@ struct SpotifySettingsSection: View {
                 .font(.subheadline.monospaced())
                 .onChange(of: store.settings.spotifyClientID) { _, id in spotify.configure(clientID: id) }
             if spotify.isConnected {
-                Label("Spotify connected", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                Label("Spotify connected", systemImage: "checkmark.circle.fill").foregroundStyle(ForgeColors.positive)
                 Button("Disconnect Spotify", role: .destructive) { spotify.disconnect() }
             } else {
                 Button("Connect Spotify account") { spotify.connect(clientID: store.settings.spotifyClientID) }

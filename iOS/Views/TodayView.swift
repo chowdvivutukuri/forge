@@ -167,6 +167,8 @@ struct TodayView: View {
                     ExerciseCard(
                         item: $item,
                         unit: store.settings.weightUnit,
+                        settings: store.settings,
+                        bodyKg: store.latestWeightKg ?? 75,
                         onSetCompleted: { rest in restEnd = Date().addingTimeInterval(TimeInterval(rest)) },
                         onShowForm: { formExercise = item.exerciseID },
                         onSwap: { store.swap(itemID: item.id) },

@@ -106,6 +106,13 @@ enum ExerciseLibrary {
         ex("pallof", "Pallof Press", [.obliques], [.abs], [.cable], compound: false),
         ex("band_pallof", "Band Pallof Press", [.obliques], [.abs], [.bands], compound: false),
         ex("kb_windmill", "Kettlebell Windmill", [.obliques], [.sideDelts, .hamstrings], [.kettlebell], compound: false),
+
+        // Cardio
+        ex("tm_walk", "Treadmill Incline Walk", [.glutes, .calves], [.hamstrings], [.treadmill], compound: false),
+        ex("tm_run", "Treadmill Run", [.quads, .calves], [.hamstrings, .glutes], [.treadmill], compound: false),
+        ex("tm_intervals", "Treadmill Intervals", [.quads, .calves], [.hamstrings, .glutes], [.treadmill], compound: false),
+        ex("ell_steady", "Elliptical", [.quads, .glutes], [.hamstrings, .calves], [.elliptical], compound: false),
+        ex("ell_intervals", "Elliptical Intervals", [.quads, .glutes], [.hamstrings, .calves], [.elliptical], compound: false),
     ]
 
     static let byID: [String: Exercise] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })

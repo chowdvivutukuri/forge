@@ -21,14 +21,15 @@ EQUIP = {"barbell": "Barbell", "dumbbell": "Dumbbells", "kettlebell": "Kettlebel
          "chestPress": "Chest press", "pecDeck": "Pec deck", "shoulderPress": "Shoulder press", "latPulldown": "Lat pulldown",
          "cableRow": "Cable row", "rowMachine": "Row machine", "assistedPullup": "Assisted pull-up", "preacher": "Preacher bench",
          "abductor": "Abduction machine", "adductor": "Adduction machine", "calfMachine": "Calf machine", "abCrunch": "Ab machine",
-         "backExtension": "Roman chair"}
+         "backExtension": "Roman chair", "treadmill": "Treadmill", "elliptical": "Elliptical"}
 
 rows = re.findall(r'ex\("(\w+)", "([^"]+)", \[([^\]]*)\], \[([^\]]*)\], \[([^\]]*)\]', lib_src)
 meta = []
 for ex_id, name, prim, sec, equip in rows:
     prim = [m.strip(" .") for m in prim.split(",") if m.strip()]
     equip = [e.strip(" .") for e in equip.split(",") if e.strip()]
-    meta.append(dict(id=ex_id, name=name, group=GROUP[prim[0]],
+    cardio = any(e in ("treadmill", "elliptical") for e in equip)
+    meta.append(dict(id=ex_id, name=name, group="Cardio" if cardio else GROUP[prim[0]],
                      muscles=[MUSCLE.get(m, m.capitalize()) for m in prim],
                      equip=[EQUIP[e] for e in equip if e != "bodyweight"] or ["Bodyweight"]))
 

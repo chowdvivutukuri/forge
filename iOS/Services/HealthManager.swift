@@ -8,7 +8,8 @@ final class HealthManager {
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
     private var shareTypes: Set<HKSampleType> {
-        [HKObjectType.workoutType(), HKQuantityType(.activeEnergyBurned), HKQuantityType(.bodyMass)]
+        [HKObjectType.workoutType(), HKQuantityType(.activeEnergyBurned), HKQuantityType(.bodyMass),
+         HKQuantityType(.distanceWalkingRunning)]
     }
     private var readTypes: Set<HKObjectType> {
         [HKObjectType.workoutType(), HKQuantityType(.heartRate), HKQuantityType(.bodyMass), HKQuantityType(.activeEnergyBurned)]
@@ -42,6 +43,33 @@ final class HealthManager {
                                           quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal),
                                           start: start, end: end)
             try await builder.addSamples([energy])
+            try await builder.endCollection(at: end)
+            _ = try await builder.finishWorkout()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Saves a treadmill or elliptical block as its own workout.
+    func saveCardioWorkout(exerciseID: String, start: Date, end: Date, kcal: Double, distanceMeters: Double?) async -> Bool {
+        guard isAvailable, end > start else { return false }
+        let config = HKWorkoutConfiguration()
+        let running = exerciseID == "tm_run" || exerciseID == "tm_intervals"
+        config.activityType = Cardio.isTreadmill(exerciseID) ? (running ? .running : .walking) : .elliptical
+        config.locationType = .indoor
+        let builder = HKWorkoutBuilder(healthStore: store, configuration: config, device: .local())
+        do {
+            try await builder.beginCollection(at: start)
+            var samples: [HKSample] = [
+                HKQuantitySample(type: HKQuantityType(.activeEnergyBurned),
+                                 quantity: HKQuantity(unit: .kilocalorie(), doubleValue: kcal), start: start, end: end)
+            ]
+            if let meters = distanceMeters, meters > 0 {
+                samples.append(HKQuantitySample(type: HKQuantityType(.distanceWalkingRunning),
+                                                quantity: HKQuantity(unit: .meter(), doubleValue: meters), start: start, end: end))
+            }
+            try await builder.addSamples(samples)
             try await builder.endCollection(at: end)
             _ = try await builder.finishWorkout()
             return true

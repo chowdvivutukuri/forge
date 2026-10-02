@@ -327,6 +327,76 @@ pat("copenhagen", "f",
     pose(40, 19.7, 15, ang(-90, 0), st(10, 13, fa=180), leg2=st(4, 24, fa=180), arm2=ik(6, 4, 1, rel="hip")),
     props=bench(0, 15, 21), period=2.6)
 
+# ---------- looping cardio patterns (a full gait cycle instead of A <-> B) ----------
+LOOP_FRAMES = 25
+
+def loop_pat(name, gen, props=(), period=1.2):
+    P[name] = dict(view="s", a=gen(0.0), b=gen(0.5), props=list(props), period=period, gen=gen, loop=True)
+
+def smooth(x):
+    x = max(0.0, min(1.0, x))
+    return x * x * (3 - 2 * x)
+
+DECK = 9.0  # treadmill belt height
+
+def treadmill_props(incline=0.0):
+    rise = math.tan(math.radians(incline))
+    y0, y1 = DECK - 1.5 + (18 - 45) * rise, DECK - 1.5 + (74 - 45) * rise
+    return [line((18, y0), (74, y1), w=3.0), line((20, GROUND), (20, y0 - 1)), line((70, GROUND), (70, y1 - 1)),
+            line((72, y1), (68, 66), w=1.6), rect(62, 64, 12, 4), line((66, 54), (52, 54), w=1.2)]
+
+def gait(t, run=False, incline=0.0):
+    rise = math.tan(math.radians(incline))
+    bob = (1.4 if run else 0.7) * math.cos(4 * math.pi * t)
+    hip = (45.0, (46.4 if run else 47.6) + bob)
+    legs = []
+    for ph in (t, t + 0.5):
+        p = ph % 1.0
+        stance = 0.42 if run else 0.6
+        front, back = (55.0, 37.0) if run else (55.0, 35.0)
+        if p < stance:
+            s_ = p / stance
+            x = front + (back - front) * s_
+            lift = 0.0
+            fa = -12 * smooth((s_ - 0.75) / 0.25)
+        else:
+            s_ = smooth((p - stance) / (1 - stance))
+            kick = (9.0 * math.sin(math.pi * s_) if run else 0.0)
+            x = back + (front - back) * s_ - kick * (1 - s_)
+            lift = (11.0 if run else 4.5) * math.sin(math.pi * s_)
+            fa = -22 * (1 - s_) + 10 * s_ * (1 - s_)
+        y = DECK + 2 + (x - 45) * rise + lift
+        legs.append(ik(x, y, 1, fa=fa))
+    arms = []
+    for ph in (t + 0.5, t):
+        sw = math.sin(2 * math.pi * ph)
+        if run:
+            arms.append(ang(-95 + 38 * sw, -5 + 38 * sw + 70))
+        else:
+            arms.append(ang(-92 + 22 * sw, -86 + 28 * sw))
+    torso = (80.0 if run else 87.0) + incline * 0.4
+    return pose(hip[0], hip[1], torso, arms[0], legs[0], arm2=arms[1], leg2=legs[1], head=(-4 if run else 0))
+
+def elliptical(t):
+    legs = []
+    for ph in (t, t + 0.5):
+        th = 2 * math.pi * ph
+        x = 46 + 9.5 * math.cos(th)
+        y = 16 + 3.2 * math.sin(th)
+        legs.append(ik(x, y, 1, fa=-8 * math.sin(th)))
+    arms = []
+    for ph in (t + 0.5, t):
+        th = 2 * math.pi * ph
+        arms.append(ik(56 + 6.5 * math.cos(th), 57 + 1.5 * math.sin(th), -1))
+    return pose(43.5, 50.2 + 0.6 * math.sin(4 * math.pi * t), 86, arms[0], legs[0], arm2=arms[1], leg2=legs[1])
+
+ELLIPTICAL_PROPS = [line((28, GROUND + 1), (74, GROUND + 1), w=3.0), line((72, GROUND + 1), (66, 72), w=1.6),
+                    rect(61, 70, 11, 5), line((34, GROUND + 1), (34, 9)), line((58, GROUND + 1), (58, 9))]
+
+loop_pat("treadmill_walk", lambda t: gait(t, incline=6.0), treadmill_props(6.0), period=1.15)
+loop_pat("treadmill_run", lambda t: gait(t, run=True), treadmill_props(0.0), period=0.75)
+loop_pat("elliptical", elliptical, ELLIPTICAL_PROPS, period=1.3)
+
 # ---------- implements ----------
 
 def imp(t, hands="both", anchor=None, at="hands"):
@@ -395,10 +465,16 @@ EX = {
     "crunch": ("crunch", NONE), "ab_crunch_machine": ("ab_machine", [HANDLE]), "dead_bug": ("dead_bug", NONE),
     "russian_twist": ("russian_twist", NONE), "pallof": ("pallof", [HANDLE]), "band_pallof": ("pallof", [HANDLE]),
     "kb_windmill": ("windmill", [imp("kettlebell", hands="near")]),
+    # cardio
+    "tm_walk": ("treadmill_walk", NONE), "tm_run": ("treadmill_run", NONE), "tm_intervals": ("treadmill_run", NONE),
+    "ell_steady": ("elliptical", [cable(66, 70), imp("pedal")]), "ell_intervals": ("elliptical", [cable(66, 70), imp("pedal")]),
 }
 
 # ---------- form cues ----------
 CUES = {
+    "treadmill_walk": ["Walk tall, don't hold the handrails", "Short, quick steps uphill", "Land under your hips, push off your toes", "Breathe steadily — you should still be able to talk"],
+    "treadmill_run": ["Run tall with a slight forward lean", "Land under your hips, not out in front", "Elbows at 90°, swing front to back", "Use the safety clip on your clothing"],
+    "elliptical": ["Stand tall, weight through your heels", "Push and pull the handles to use your arms", "Keep a smooth, steady rhythm", "Turn up resistance before speed"],
     "squat_back": ["Bar on upper back, feet shoulder-width", "Break at hips and knees together", "Knees track over toes", "Stand up driving through mid-foot"],
     "squat_front": ["Bar on front of shoulders, elbows high", "Stay tall — chest up the whole way", "Sit straight down between your heels", "Drive up keeping elbows up"],
     "squat_goblet": ["Hold the weight at your chest", "Elbows inside the knees at the bottom", "Keep your chest up", "Push the floor away to stand"],
@@ -465,6 +541,9 @@ CUES = {
     "copenhagen": ["Top leg on the bench", "Forearm under shoulder", "Lift hips into a straight line", "Hold or pulse slowly"],
 }
 EX_TIPS = {
+    "tm_intervals": "Alternate 1 minute fast with 2 minutes easy. Change speed with the buttons, not by grabbing the rails.",
+    "ell_intervals": "Alternate 1 minute at high resistance with 2 minutes easy.",
+    "tm_walk": "Incline does the work here — keep the speed comfortable.",
     "close_grip_bench": "Hands shoulder-width; keep elbows tucked.",
     "chinup": "Palms facing you — more biceps.",
     "hammer_curl": "Palms facing each other.",
@@ -640,6 +719,8 @@ def phase(t, period):
 def pattern_center(pt):
     if pt["view"] == "f":
         return 50.0
+    if pt.get("loop"):
+        return 47.0
     xs = []
     for p in (pt["a"], pt["b"]):
         pts = solve3d(p, "s", 50.0)
@@ -649,6 +730,12 @@ def pattern_center(pt):
 def frames_for(pt):
     cx = pattern_center(pt)
     out = []
+    if pt.get("loop"):
+        for i in range(LOOP_FRAMES):
+            t = i / (LOOP_FRAMES - 1)
+            pts = solve3d(pt["gen"](t % 1.0), "s", cx)
+            out.append([round(v, 2) for q in pts for v in q])
+        return cx, out
     for i in range(NFRAMES):
         t = i / (NFRAMES - 1)
         pts = solve3d(lerp_pose(pt["a"], pt["b"], t), pt["view"], cx)
@@ -824,6 +911,10 @@ def scene(pat, ex, F, yaw):
             u = norm3([P0[i] - P1[i] for i in range(3)])
             a, b = pr(add3(P0, u, 3.0)), pr(add3(P1, u, -3.0))
             items.append(dict(t="line", pts=[(a[0], a[1]), (b[0], b[1])], w=4.4, role="pad", a=1.0, d=(a[2] + b[2]) / 2 + 0.5))
+        elif t == "pedal":
+            for (H, K, A, T) in LEG:
+                a, b = pr(add3(pt(A), [-3.0, -2.2, 0])), pr(add3(pt(T), [1.5, -1.6, 0]))
+                items.append(dict(t="line", pts=[(a[0], a[1]), (b[0], b[1])], w=2.2, role="steel", a=1.0, d=(a[2] + b[2]) / 2 - 0.3))
         elif t == "sled":
             A0, T0, A1, T1 = pt(LEG[0][2]), pt(LEG[0][3]), pt(LEG[1][2]), pt(LEG[1][3])
             m = mid3(A0, T0, A1, T1)
@@ -844,7 +935,10 @@ def scene(pat, ex, F, yaw):
 def check():
     issues = []
     for name, pt in P.items():
-        for label, p in (("A", pt["a"]), ("B", pt["b"])):
+        poses = [("A", pt["a"]), ("B", pt["b"])]
+        if pt.get("loop"):
+            poses = [(f"t={i / 12:.2f}", pt["gen"](i / 12)) for i in range(12)]
+        for label, p in poses:
             pts = solve3d(p, pt["view"], 50.0)
             for q in pts:
                 if q[1] < GROUND - 1.0:
@@ -863,7 +957,8 @@ def build_json():
     pats = {}
     for name, pt in P.items():
         cx, frames = frames_for(pt)
-        pats[name] = dict(view=pt["view"], T=pt["period"], cx=cx, f=frames, pr=props3d(pt["props"], pt["view"], cx))
+        pats[name] = dict(view=pt["view"], T=pt["period"], cx=cx, f=frames, pr=props3d(pt["props"], pt["view"], cx),
+                          loop=bool(pt.get("loop")))
     exs = {}
     for ex, v in EX.items():
         patn, imps = v[0], v[1]
@@ -896,7 +991,7 @@ def render_sheet(path, data, names, cell=140, yaws=(90, 0), ts=(0.0, 1.0)):
         col = 0
         for yaw in yaws:
             for t in ts:
-                fi = t * (NFRAMES - 1)
+                fi = t * (len(pat["f"]) - 1)
                 F = pat["f"][int(round(fi))]
                 ox, oy = 150 + col * cell, r * cell
                 k = cell / 100.0

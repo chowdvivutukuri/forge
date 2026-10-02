@@ -74,8 +74,10 @@ struct WorkoutDetailView: View {
                     let done = item.sets.filter(\.done)
                     if done.isEmpty {
                         Text("Skipped").foregroundStyle(.secondary)
+                    } else if item.isCardio {
+                        Text(Cardio.summary(item, settings: store.settings)).monospacedDigit()
                     }
-                    ForEach(Array(done.enumerated()), id: \.element.id) { i, set in
+                    ForEach(Array((item.isCardio ? [] : done).enumerated()), id: \.element.id) { i, set in
                         HStack {
                             Text("Set \(i + 1)").foregroundStyle(.secondary)
                             Spacer()

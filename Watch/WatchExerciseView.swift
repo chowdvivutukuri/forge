@@ -28,7 +28,9 @@ struct WatchExerciseView: View {
     }
 
     var body: some View {
-        if let item {
+        if let item, item.isCardio {
+            WatchCardioView(itemID: itemID)
+        } else if let item {
             VStack(spacing: 6) {
                 Text(item.name)
                     .font(.headline)
@@ -57,10 +59,10 @@ struct WatchExerciseView: View {
                     } label: {
                         Text("Log Set").bold().frame(maxWidth: .infinity)
                     }
-                    .tint(.green)
+                    .tint(ForgeColors.positive)
                 } else {
                     Label("All sets done", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(ForgeColors.positive)
                     HStack {
                         Button("Add Set") { store.addSet(itemID: itemID) }
                         Button("Undo") { store.undoLastSet(itemID: itemID) }
@@ -145,7 +147,7 @@ struct WatchFormView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
                 FormFigureView(exerciseID: exerciseID, yaw: angle.yaw, spin: angle == .turn,
-                               palette: FormPalette(ink: .white, accent: Color(red: 1.0, green: 0.48, blue: 0.24), face: .black))
+                               palette: FormPalette(ink: .white, accent: ForgeColors.accent, face: .black))
                     .frame(maxWidth: .infinity)
                     .frame(height: 120)
                     .onTapGesture {
@@ -157,7 +159,7 @@ struct WatchFormView: View {
                     .frame(maxWidth: .infinity)
                 ForEach(Array(FormLibrary.cues(for: exerciseID).enumerated()), id: \.offset) { i, cue in
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("\(i + 1)").font(.caption.bold()).foregroundStyle(.orange)
+                        Text("\(i + 1)").font(.caption.bold()).foregroundStyle(ForgeColors.accent)
                         Text(cue).font(.caption)
                     }
                 }
@@ -165,5 +167,63 @@ struct WatchFormView: View {
         }
         .navigationTitle(ExerciseLibrary.byID[exerciseID]?.name ?? "Form")
         .onAppear { angle = FormLibrary.defaultYaw(for: exerciseID) == 0 ? .front : .side }
+    }
+}
+
+/// Treadmill / elliptical on the watch: shows the plan, times the session, logs the minutes.
+struct WatchCardioView: View {
+    @EnvironmentObject var store: WatchStore
+    let itemID: UUID
+    @State private var started: Date?
+    @State private var minutes: Double = 0
+    @State private var showForm = false
+
+    private var item: WorkoutExercise? { store.workout?.exercises.first { $0.id == itemID } }
+
+    var body: some View {
+        if let item {
+            ScrollView {
+                VStack(spacing: 6) {
+                    Text(item.name).font(.headline).multilineTextAlignment(.center)
+                    Text(Cardio.summary(item, settings: store.unitSettings))
+                        .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    if let note = item.note {
+                        Text(note).font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    }
+                    if item.sets.first?.done == true {
+                        Label("Logged \(Cardio.fmt(item.cardioMinutes)) min", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(ForgeColors.positive)
+                    } else if let started {
+                        Text(timerInterval: started...Date.distantFuture, countsDown: false)
+                            .font(.system(size: 34, weight: .semibold, design: .rounded).monospacedDigit())
+                        Button("Done") {
+                            let elapsed = max(1, (Date().timeIntervalSince(started) / 60).rounded())
+                            store.logCardio(itemID: itemID, minutes: elapsed)
+                            WKInterfaceDevice.current().play(.success)
+                        }
+                        .tint(ForgeColors.positive)
+                    } else {
+                        Text("\(Cardio.fmt(minutes)) min").font(.title2.monospacedDigit().bold())
+                            .focusable()
+                            .digitalCrownRotation($minutes, from: 1, through: 120, by: 1, sensitivity: .medium,
+                                                  isContinuous: false, isHapticFeedbackEnabled: true)
+                        Button("Start timer") { started = Date() }
+                            .tint(ForgeColors.accent)
+                        Button("Log \(Cardio.fmt(minutes)) min") {
+                            store.logCardio(itemID: itemID, minutes: minutes)
+                            WKInterfaceDevice.current().play(.success)
+                        }
+                        .font(.footnote)
+                    }
+                }
+            }
+            .onAppear { minutes = item.sets.first?.minutes ?? item.targetMinutes ?? 20 }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showForm = true } label: { Image(systemName: "figure.run") }
+                }
+            }
+            .sheet(isPresented: $showForm) { WatchFormView(exerciseID: item.exerciseID) }
+        }
     }
 }

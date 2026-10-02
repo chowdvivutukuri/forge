@@ -22,6 +22,7 @@ final class PhoneConnectivity: NSObject, WCSessionDelegate {
         let context: [String: Any] = [
             SyncKey.workout: workoutData,
             SyncKey.useKg: settings.useKilograms,
+            SyncKey.abhi: settings.abhiMode,
             SyncKey.sentAt: Date().timeIntervalSince1970,
         ]
         try? s.updateApplicationContext(context)

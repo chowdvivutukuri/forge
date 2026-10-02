@@ -126,20 +126,28 @@ struct ProgressTab: View {
                 Spacer()
                 Text("\(thisWeek) of \(s.daysPerWeek) workouts").bold()
             }
-            ProgressView(value: min(1, Double(thisWeek) / Double(max(1, s.daysPerWeek)))).tint(.green)
+            ProgressView(value: min(1, Double(thisWeek) / Double(max(1, s.daysPerWeek)))).tint(ForgeColors.positive)
+            let cardioMinutes = store.workouts(inWeekOf: Date()).flatMap(\.exercises).filter(\.isCardio).map(\.cardioMinutes).reduce(0, +)
+            if cardioMinutes > 0 || s.cardioPlan != .off {
+                HStack {
+                    Label("Cardio this week", systemImage: "figure.run")
+                    Spacer()
+                    Text("\(Int(cardioMinutes.rounded())) min").bold()
+                }
+            }
             HStack(spacing: 6) {
                 ForEach(0..<8, id: \.self) { i in
                     let date = Calendar.current.date(byAdding: .weekOfYear, value: i - 7, to: Date()) ?? Date()
                     let n = store.workouts(inWeekOf: date).count
                     VStack(spacing: 3) {
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(n >= s.daysPerWeek ? Color.green : (n > 0 ? Color.green.opacity(0.4) : Color.secondary.opacity(0.15)))
+                            .fill(weekColor(n))
                             .frame(height: 22)
                         Text("\(n)").font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
                     }
                 }
             }
-            Text("Last 8 weeks — full green means you hit your \(s.daysPerWeek) days.")
+            Text("Last 8 weeks — a full bar means you hit your \(s.daysPerWeek) days.")
                 .font(.caption2).foregroundStyle(.secondary)
         }
     }
@@ -167,7 +175,7 @@ struct ProgressTab: View {
                         Spacer()
                         Text("\(Int((progress * 100).rounded()))%").font(.headline.monospacedDigit())
                     }
-                    ProgressView(value: progress).tint(progress >= 1 ? .green : Theme.accent)
+                    ProgressView(value: progress).tint(progress >= 1 ? ForgeColors.positive : Theme.accent)
                 }
                 .swipeActions {
                     Button("Delete", role: .destructive) {
@@ -179,6 +187,12 @@ struct ProgressTab: View {
         } header: {
             Text("Strength targets")
         }
+    }
+
+    private func weekColor(_ n: Int) -> Color {
+        if n >= s.daysPerWeek { return ForgeColors.positive }
+        if n > 0 { return ForgeColors.positive.opacity(0.4) }
+        return Color.secondary.opacity(0.15)
     }
 
     static func progress(current: Double, start: Double, target: Double) -> Double {
@@ -286,7 +300,7 @@ struct AddTargetSheet: View {
     @State private var target: Double = 0
 
     private var options: [Exercise] {
-        store.generator.availableExercises.filter { !$0.isBodyweight }.sorted { $0.name < $1.name }
+        store.generator.availableExercises.filter { !$0.isBodyweight && !$0.isCardio }.sorted { $0.name < $1.name }
     }
 
     var body: some View {

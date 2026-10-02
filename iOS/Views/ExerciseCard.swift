@@ -3,6 +3,8 @@ import SwiftUI
 struct ExerciseCard: View {
     @Binding var item: WorkoutExercise
     let unit: String
+    var settings = UserSettings()
+    var bodyKg: Double = 75
     var onSetCompleted: (Int) -> Void
     var onShowForm: () -> Void
     var onSwap: () -> Void
@@ -69,6 +71,88 @@ struct ExerciseCard: View {
                 }
             }
 
+            if item.isCardio {
+                cardioBody
+            } else {
+                strengthBody
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    // MARK: Cardio
+
+    private func cardioValue(_ key: WritableKeyPath<LoggedSet, Double?>) -> Binding<Double> {
+        Binding(
+            get: { item.sets.first?[keyPath: key] ?? 0 },
+            set: { v in
+                if item.sets.isEmpty { item.sets.append(LoggedSet(reps: 0, weight: 0)) }
+                item.sets[0][keyPath: key] = v
+            }
+        )
+    }
+
+    @ViewBuilder private var cardioBody: some View {
+        let treadmill = Cardio.isTreadmill(item.exerciseID)
+        let done = item.sets.first?.done ?? false
+        if let note = item.note {
+            Label(note, systemImage: "repeat")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        HStack(spacing: 8) {
+            cardioField("MIN", cardioValue(\.minutes))
+            cardioField(treadmill ? settings.speedUnit.uppercased() : "LEVEL", cardioValue(\.speed))
+            if treadmill { cardioField("INCLINE %", cardioValue(\.incline)) }
+            Button {
+                if item.sets.isEmpty { item.sets.append(LoggedSet(reps: 0, weight: 0)) }
+                item.sets[0].done.toggle()
+                if item.sets[0].done {
+                    let s = item.sets[0]
+                    item.sets[0].distance = Cardio.distance(item.exerciseID, minutes: s.minutes ?? 0, speed: s.speed)
+                }
+            } label: {
+                Image(systemName: done ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundStyle(done ? ForgeColors.positive : Color.secondary)
+            }
+            .buttonStyle(.borderless)
+            .frame(width: 40)
+        }
+        if let s = item.sets.first {
+            let kcal = Cardio.calories(item.exerciseID, minutes: s.minutes ?? 0, speed: s.speed, incline: s.incline,
+                                       bodyKg: bodyKg, useKm: settings.useKilograms)
+            HStack {
+                Label("≈ \(Int(kcal.rounded())) kcal", systemImage: "flame")
+                if let d = Cardio.distance(item.exerciseID, minutes: s.minutes ?? 0, speed: s.speed) {
+                    Label("\(Cardio.fmt(d)) \(settings.distanceUnit)", systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                }
+                Spacer()
+                if let target = item.targetMinutes, let m = s.minutes, abs(m - target) >= 0.5 {
+                    Text("Suggested \(Cardio.fmt(target)) min").foregroundStyle(.secondary)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        Text("Log what you actually did — next time's suggestion builds on it.")
+            .font(.caption2).foregroundStyle(.secondary)
+    }
+
+    private func cardioField(_ label: String, _ value: Binding<Double>) -> some View {
+        VStack(spacing: 3) {
+            Text(label).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+            TextField("0", value: value, format: .number)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, 6)
+                .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        }
+    }
+
+    // MARK: Strength
+
+    @ViewBuilder private var strengthBody: some View {
             HStack {
                 Text("SET").frame(width: 34, alignment: .leading)
                 Text(isBodyweight ? "+\(unit)" : unit.uppercased()).frame(maxWidth: .infinity)
@@ -99,7 +183,7 @@ struct ExerciseCard: View {
                     } label: {
                         Image(systemName: set.done ? "checkmark.circle.fill" : "circle")
                             .font(.title2)
-                            .foregroundStyle(set.done ? Color.green : Color.secondary)
+                            .foregroundStyle(set.done ? ForgeColors.positive : Color.secondary)
                     }
                     .buttonStyle(.borderless)
                     .frame(width: 40)
@@ -135,8 +219,6 @@ struct ExerciseCard: View {
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }
-        }
-        .padding(.vertical, 4)
     }
 }
 
@@ -164,7 +246,7 @@ struct ExercisePickerView: View {
                 Toggle("Include exercises needing other equipment", isOn: $showAll)
                     .font(.subheadline)
                 ForEach(MuscleGroup.allCases) { group in
-                    let items = exercises.filter { $0.primary.first?.group == group }
+                    let items = exercises.filter { $0.group == group }
                     if !items.isEmpty {
                         Section(group.displayName) {
                             ForEach(items) { ex in

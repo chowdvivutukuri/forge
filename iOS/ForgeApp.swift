@@ -10,18 +10,21 @@ struct ForgeApp: App {
             RootView()
                 .environmentObject(store)
                 .environmentObject(spotify)
-                .tint(Theme.accent)
                 .onAppear { spotify.configure(clientID: store.settings.spotifyClientID) }
         }
     }
 }
 
 enum Theme {
-    static let accent = Color(red: 0.89, green: 0.35, blue: 0.12)
+    static var accent: Color { ForgeColors.accent }
 
-    /// Red (fatigued) → yellow → green (fresh).
+    /// Red (fatigued) → yellow → green (fresh). In Abhi mode: deep purple (fatigued) → lavender (fresh).
     static func recoveryColor(_ value: Double) -> Color {
-        Color(hue: 0.33 * max(0, min(1, value)), saturation: 0.78, brightness: 0.88)
+        let v = max(0, min(1, value))
+        if ForgeColors.abhiMode {
+            return Color(hue: 0.76 - 0.04 * v, saturation: 0.85 - 0.55 * v, brightness: 0.45 + 0.5 * v)
+        }
+        return Color(hue: 0.33 * v, saturation: 0.78, brightness: 0.88)
     }
 
     static func formatWeight(_ w: Double) -> String {
@@ -51,6 +54,7 @@ struct RootView: View {
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
+        .tint(Theme.accent)
         .fullScreenCover(isPresented: Binding(
             get: { !store.settings.onboarded },
             set: { _ in }
