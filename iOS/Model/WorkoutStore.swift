@@ -13,6 +13,8 @@ final class WorkoutStore: ObservableObject {
     @Published private(set) var history: [Workout] { didSet { stateChanged(pushToWatch: false) } }
     @Published var current: Workout? { didSet { stateChanged(pushToWatch: true) } }
     @Published private(set) var weighIns: [WeighIn] { didSet { stateChanged(pushToWatch: false) } }
+    /// Which tab is showing (not saved).
+    @Published var selectedTab: AppTab = .workout
 
     let health = HealthManager()
     let connectivity = PhoneConnectivity()
@@ -129,7 +131,48 @@ final class WorkoutStore: ObservableObject {
     // MARK: Workout actions
 
     /// Generates the next day of the program.
-    func startNextProgramDay() { current = generator.generateNext() }
+    func startNextProgramDay() { startPlannedDay(programDayIndex) }
+
+    /// Starts the same workout the Program tab shows for that day.
+    func startPlannedDay(_ index: Int) {
+        let preview = generator.programPreview()
+        if preview.indices.contains(index) {
+            start(planned: preview[index])
+        } else {
+            startProgramDay(index)
+        }
+    }
+
+    /// Starts exactly the workout shown on the Program tab, with weights refreshed from your real history,
+    /// and switches to the Workout tab.
+    func start(planned: Workout) {
+        var w = planned
+        w.id = UUID()
+        w.createdAt = Date()
+        w.updatedAt = Date()
+        w.startedAt = nil
+        w.finishedAt = nil
+        let gen = generator
+        for e in w.exercises.indices {
+            guard let ex = w.exercises[e].exercise else { continue }
+            if ex.isCardio {
+                let role: Cardio.Role = (e == 0 && w.exercises.count > 1) ? .warmup : (w.exercises.count > 1 ? .finisher : .session)
+                w.exercises[e] = gen.makeCardioEntry(for: ex, role: role)
+                continue
+            }
+            let reps = w.exercises[e].targetReps ?? w.exercises[e].sets.first?.reps ?? settings.goal.targetReps
+            let weight = gen.suggestedWeight(for: ex, reps: reps)
+            w.exercises[e].suggestedWeight = weight
+            for s in w.exercises[e].sets.indices {
+                w.exercises[e].sets[s].id = UUID()
+                w.exercises[e].sets[s].weight = weight
+                w.exercises[e].sets[s].done = false
+            }
+            w.exercises[e].id = UUID()
+        }
+        current = w
+        selectedTab = .workout
+    }
 
     func startProgramDay(_ index: Int) {
         let schedule = settings.schedule
@@ -320,4 +363,8 @@ final class WorkoutStore: ObservableObject {
         guard let week = cal.dateInterval(of: .weekOfYear, for: date) else { return [] }
         return history.filter { week.contains($0.finishedAt ?? $0.createdAt) }
     }
+}
+
+enum AppTab: Hashable {
+    case workout, program, progress, recovery, settings
 }

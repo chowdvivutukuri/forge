@@ -4,7 +4,7 @@ struct ProgramView: View {
     @EnvironmentObject var store: WorkoutStore
     @State private var preview: [Workout] = []
     @State private var form: FormSheetID?
-    @State private var started = false
+    @State private var pending: Workout?
 
     var body: some View {
         NavigationStack {
@@ -53,8 +53,11 @@ struct ProgramView: View {
                                 unit: store.settings.weightUnit,
                                 onForm: { form = FormSheetID(id: $0) },
                                 onStart: {
-                                    store.startProgramDay(i)
-                                    started = true
+                                    if store.current != nil {
+                                        pending = w
+                                    } else {
+                                        store.start(planned: w)
+                                    }
                                 })
                     }
                 } header: {
@@ -66,10 +69,18 @@ struct ProgramView: View {
             .forgeScreen()
             .navigationTitle("Program")
             .sheet(item: $form) { FormDetailView(exerciseID: $0.id) }
-            .alert("Workout ready", isPresented: $started) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Open the Workout tab to start logging.")
+            .confirmationDialog("You already have a workout in progress",
+                                isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
+                                titleVisibility: .visible) {
+                Button("Replace it with \(pending?.title ?? "this day")", role: .destructive) {
+                    if let w = pending { store.start(planned: w) }
+                    pending = nil
+                }
+                Button("Go to current workout") {
+                    store.selectedTab = .workout
+                    pending = nil
+                }
+                Button("Cancel", role: .cancel) { pending = nil }
             }
             .onAppear(perform: refresh)
             .onChange(of: store.settings) { _, _ in refresh() }

@@ -106,7 +106,7 @@ struct TodayView: View {
                     Menu {
                         Section("Another program day") {
                             ForEach(Array(schedule.enumerated()), id: \.offset) { i, f in
-                                Button("Day \(i + 1) · \(f.displayName)") { store.startProgramDay(i) }
+                                Button("Day \(i + 1) · \(f.displayName)") { store.startPlannedDay(i) }
                             }
                         }
                         Section("One-off workout") {

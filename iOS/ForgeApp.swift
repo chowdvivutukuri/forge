@@ -43,17 +43,22 @@ struct RootView: View {
     @EnvironmentObject var store: WorkoutStore
 
     var body: some View {
-        TabView {
+        TabView(selection: $store.selectedTab) {
             TodayView()
                 .tabItem { Label("Workout", systemImage: "dumbbell.fill") }
+                .tag(AppTab.workout)
             ProgramView()
                 .tabItem { Label("Program", systemImage: "calendar") }
+                .tag(AppTab.program)
             ProgressTab()
                 .tabItem { Label("Progress", systemImage: "chart.line.uptrend.xyaxis") }
+                .tag(AppTab.progress)
             RecoveryView()
                 .tabItem { Label("Recovery", systemImage: "figure.strengthtraining.traditional") }
+                .tag(AppTab.recovery)
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+                .tag(AppTab.settings)
         }
         .tint(Theme.accent)
         .foregroundStyle(store.settings.abhiMode ? ForgeColors.ink : Color.primary)
