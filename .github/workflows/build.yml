@@ -25,7 +25,7 @@ jobs:
 
       - name: Build iPhone + Watch app (unsigned)
         run: |
-          set -o pipefail
+          set +e
           xcodebuild \
             -project Forge.xcodeproj \
             -scheme Forge \
@@ -35,8 +35,10 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build | tee build.log | grep -E "error:|warning: .*(Forge|Shared|Watch)|BUILD" || true
-          test -d build/Build/Products/Release-iphoneos/Forge.app
+            build > build.log 2>&1
+          code=$?
+          grep -E "error:|BUILD" build.log | tail -40
+          exit $code
 
       - name: Check the Watch app is embedded
         run: |

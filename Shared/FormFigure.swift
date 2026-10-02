@@ -272,8 +272,16 @@ enum FormScene {
     }
 
     static func hull(_ input: [CGPoint]) -> [CGPoint] {
-        let pts = input.map { CGPoint(x: ($0.x * 1000).rounded() / 1000, y: ($0.y * 1000).rounded() / 1000) }
-            .sorted { $0.x == $1.x ? $0.y < $1.y : $0.x < $1.x }
+        func snap(_ v: CGFloat) -> CGFloat {
+            let scaled: CGFloat = (v * 1000).rounded()
+            return scaled / 1000
+        }
+        var pts: [CGPoint] = []
+        for p in input { pts.append(CGPoint(x: snap(p.x), y: snap(p.y))) }
+        pts.sort { (a: CGPoint, b: CGPoint) -> Bool in
+            if a.x == b.x { return a.y < b.y }
+            return a.x < b.x
+        }
         var unique: [CGPoint] = []
         for p in pts where unique.last != p { unique.append(p) }
         guard unique.count > 2 else { return unique }
