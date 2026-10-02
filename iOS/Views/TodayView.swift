@@ -15,6 +15,7 @@ struct TodayView: View {
             Group {
                 if store.current != nil { activeWorkout } else { emptyState }
             }
+            .forgeScreen()
             .navigationTitle(store.current?.title ?? "Today")
             .toolbar {
                 if store.current != nil {

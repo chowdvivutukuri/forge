@@ -40,6 +40,7 @@ struct OnboardingView: View {
                 case .finish: finishStep
                 }
             }
+            .forgeScreen()
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

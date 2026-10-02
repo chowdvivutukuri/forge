@@ -43,6 +43,7 @@ final class WorkoutStore: ObservableObject {
             weighIns = []
         }
         ForgeColors.setAbhiMode(settings.abhiMode)
+        AbhiAppearance.apply(settings.abhiMode)
         connectivity.onWorkoutUpdate = { [weak self] w in self?.receiveFromWatch(w, finished: false) }
         connectivity.onWorkoutFinished = { [weak self] w in self?.receiveFromWatch(w, finished: true) }
         connectivity.onActivated = { [weak self] in
@@ -74,6 +75,7 @@ final class WorkoutStore: ObservableObject {
     /// Abhi mode: purple everything, including the home-screen icon.
     private func applyLook(_ purple: Bool) {
         ForgeColors.setAbhiMode(purple)
+        AbhiAppearance.apply(purple)
         let app = UIApplication.shared
         guard app.supportsAlternateIcons else { return }
         let wanted: String? = purple ? "AppIconPurple" : nil

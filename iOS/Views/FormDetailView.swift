@@ -88,6 +88,7 @@ struct FormDetailView: View {
                 }
                 .padding()
             }
+            .forgeScreen()
             .navigationTitle(exercise?.name ?? "Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

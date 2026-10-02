@@ -278,6 +278,7 @@ struct ExercisePickerView: View {
                 }
             }
             .searchable(text: $search, prompt: "Search exercises, muscles, machines")
+            .forgeScreen()
             .navigationTitle("Exercises")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

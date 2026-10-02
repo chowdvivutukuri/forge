@@ -21,8 +21,10 @@ struct WatchRootView: View {
     var body: some View {
         TabView {
             WatchWorkoutView()
+                .watchAbhiPage()
             // System Now Playing controls: controls Spotify (or any audio) on the paired iPhone.
             NowPlayingView()
+                .watchAbhiPage()
         }
         .tabViewStyle(.verticalPage)
     }
@@ -80,6 +82,7 @@ struct WatchWorkoutView: View {
                         .disabled(finishing)
                     }
                 }
+                .watchAbhi()
                 .navigationTitle(workout.title)
                 .navigationDestination(for: UUID.self) { id in
                     WatchExerciseView(itemID: id)
@@ -105,8 +108,29 @@ struct WatchWorkoutView: View {
                         .font(.footnote)
                         .multilineTextAlignment(.center)
                 }
+                .watchAbhi()
                 .navigationTitle("Forge")
             }
+        }
+    }
+}
+
+// MARK: - Abhi mode on the watch: purple instead of black backgrounds
+
+extension View {
+    @ViewBuilder func watchAbhi() -> some View {
+        if ForgeColors.abhiMode {
+            self.containerBackground(ForgeColors.watchBackground, for: .navigation)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder func watchAbhiPage() -> some View {
+        if ForgeColors.abhiMode {
+            self.containerBackground(ForgeColors.watchBackground, for: .tabView)
+        } else {
+            self
         }
     }
 }

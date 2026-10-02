@@ -19,6 +19,7 @@ struct ProgressTab: View {
                 if !store.history.isEmpty { volumeSection }
                 historySection
             }
+            .forgeScreen()
             .navigationTitle("Progress")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -254,6 +255,7 @@ struct WeighInSheet: View {
                 }
                 DatePicker("Date", selection: $date, in: ...Date(), displayedComponents: .date)
             }
+            .forgeScreen()
             .navigationTitle("Log weight")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -289,6 +291,7 @@ struct WeighInListView: View {
             }
             .onDelete { offsets in offsets.map { items[$0].id }.forEach(store.deleteWeighIn) }
         }
+        .forgeScreen()
         .navigationTitle("Weigh-ins")
     }
 }
@@ -315,6 +318,7 @@ struct AddTargetSheet: View {
                 Stepper("Target: \(Theme.formatWeight(target)) \(store.settings.weightUnit)", value: $target, in: 0...2000,
                         step: store.settings.useKilograms ? 2.5 : 5)
             }
+            .forgeScreen()
             .navigationTitle("Strength target")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

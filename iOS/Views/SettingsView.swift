@@ -114,6 +114,7 @@ struct SettingsView: View {
                     Text("Forge — private build. Your data stays on your devices and your iCloud Drive.")
                 }
             }
+            .forgeScreen()
             .navigationTitle("Settings")
             .sheet(isPresented: $editProfile) { OnboardingView(mode: .edit) }
             .confirmationDialog("Erase all workouts and settings on this iPhone?", isPresented: $confirmErase, titleVisibility: .visible) {
@@ -141,6 +142,7 @@ struct EquipmentProfileEditor: View {
                 EquipmentEditor(profile: $store.settings.profiles[i], customMap: $store.settings.customMachineMap)
             }
         }
+        .forgeScreen()
         .navigationTitle(index.map { store.settings.profiles[$0].name } ?? "Setup")
         .navigationBarTitleDisplayMode(.inline)
     }

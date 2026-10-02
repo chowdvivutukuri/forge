@@ -78,6 +78,7 @@ struct WatchExerciseView: View {
                                   sensitivity: .medium,
                                   isContinuous: false,
                                   isHapticFeedbackEnabled: true)
+            .watchAbhi()
             .onAppear { load() }
             .onChange(of: nextSet?.id) { _, _ in load() }
             .toolbar {
@@ -165,6 +166,7 @@ struct WatchFormView: View {
                 }
             }
         }
+        .watchAbhi()
         .navigationTitle(ExerciseLibrary.byID[exerciseID]?.name ?? "Form")
         .onAppear { angle = FormLibrary.defaultYaw(for: exerciseID) == 0 ? .front : .side }
     }
@@ -217,6 +219,7 @@ struct WatchCardioView: View {
                     }
                 }
             }
+            .watchAbhi()
             .onAppear { minutes = item.sets.first?.minutes ?? item.targetMinutes ?? 20 }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

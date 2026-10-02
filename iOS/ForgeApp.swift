@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 @main
 struct ForgeApp: App {
@@ -55,6 +56,9 @@ struct RootView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(Theme.accent)
+        .foregroundStyle(store.settings.abhiMode ? ForgeColors.ink : Color.primary)
+        .preferredColorScheme(store.settings.abhiMode ? .light : nil)
+        .id(store.settings.abhiMode)
         .fullScreenCover(isPresented: Binding(
             get: { !store.settings.onboarded },
             set: { _ in }
@@ -62,5 +66,55 @@ struct RootView: View {
             OnboardingView(mode: .firstRun)
                 .environmentObject(store)
         }
+    }
+}
+
+// MARK: - Abhi mode styling
+
+extension View {
+    /// Light purple screen background in Abhi mode (normal system background otherwise).
+    func forgeScreen() -> some View {
+        modifier(ForgeScreen())
+    }
+}
+
+struct ForgeScreen: ViewModifier {
+    func body(content: Content) -> some View {
+        if ForgeColors.abhiMode {
+            content
+                .scrollContentBackground(.hidden)
+                .background(ForgeColors.lavender.ignoresSafeArea())
+        } else {
+            content
+        }
+    }
+}
+
+enum AbhiAppearance {
+    /// Navigation and tab bars are UIKit, so they're styled through appearance proxies.
+    static func apply(_ on: Bool) {
+        let nav = UINavigationBarAppearance()
+        let tab = UITabBarAppearance()
+        if on {
+            let ink = UIColor(ForgeColors.ink)
+            nav.configureWithOpaqueBackground()
+            nav.backgroundColor = UIColor(ForgeColors.lavender)
+            nav.shadowColor = .clear
+            nav.titleTextAttributes = [.foregroundColor: ink]
+            nav.largeTitleTextAttributes = [.foregroundColor: ink]
+            tab.configureWithOpaqueBackground()
+            tab.backgroundColor = UIColor(ForgeColors.lavender)
+            let item = tab.stackedLayoutAppearance
+            item.normal.iconColor = ink.withAlphaComponent(0.55)
+            item.normal.titleTextAttributes = [.foregroundColor: ink.withAlphaComponent(0.55)]
+        } else {
+            nav.configureWithDefaultBackground()
+            tab.configureWithDefaultBackground()
+        }
+        UINavigationBar.appearance().standardAppearance = nav
+        UINavigationBar.appearance().compactAppearance = nav
+        UINavigationBar.appearance().scrollEdgeAppearance = on ? nav : nil
+        UITabBar.appearance().standardAppearance = tab
+        UITabBar.appearance().scrollEdgeAppearance = on ? tab : nil
     }
 }

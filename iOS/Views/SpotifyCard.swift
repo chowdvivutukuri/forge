@@ -122,6 +122,7 @@ struct PlaylistPicker: View {
                     }
                 }
             }
+            .forgeScreen()
             .navigationTitle("Playlists")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }

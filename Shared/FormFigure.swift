@@ -331,7 +331,7 @@ enum FormScene {
 // MARK: - View
 
 struct FormPalette {
-    var ink: Color = .primary
+    var ink: Color = ForgeColors.abhiMode ? ForgeColors.ink : .primary
     var accent: Color = ForgeColors.accent
     var background: Color = Color(white: 0.5).opacity(0.0)
     var face: Color = .white
@@ -450,6 +450,15 @@ enum ForgeColors {
     static let purple = Color(red: 0.55, green: 0.27, blue: 0.93)
 
     static var accent: Color { abhiMode ? purple : orange }
+
+    // Abhi mode replaces black/dark surfaces and text with purples.
+    /// Light purple page background.
+    static let lavender = Color(red: 0.93, green: 0.89, blue: 1.0)
+    /// Deep purple used instead of black for text and figures.
+    static let ink = Color(red: 0.24, green: 0.12, blue: 0.40)
+    /// Watch background (the Watch is always dark, so a mid purple keeps white text readable).
+    static let watchBackground = LinearGradient(colors: [Color(red: 0.42, green: 0.25, blue: 0.68), Color(red: 0.22, green: 0.12, blue: 0.38)],
+                                                startPoint: .top, endPoint: .bottom)
     /// Used where the app would otherwise show green for "good".
     static var positive: Color { abhiMode ? Color(red: 0.70, green: 0.45, blue: 1.0) : .green }
 

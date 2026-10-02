@@ -40,6 +40,7 @@ struct RecoveryView: View {
                     }
                 }
             }
+            .forgeScreen()
             .navigationTitle("Recovery")
         }
     }

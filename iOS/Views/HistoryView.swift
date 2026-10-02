@@ -41,6 +41,7 @@ struct HistoryView: View {
                     }
                 }
             }
+            .forgeScreen()
             .navigationTitle("History")
             .navigationDestination(for: UUID.self) { id in
                 if let w = store.history.first(where: { $0.id == id }) {
@@ -92,6 +93,7 @@ struct WorkoutDetailView: View {
                 }
             }
         }
+        .forgeScreen()
         .navigationTitle(workout.title)
         .navigationBarTitleDisplayMode(.inline)
     }

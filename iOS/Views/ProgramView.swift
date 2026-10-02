@@ -63,6 +63,7 @@ struct ProgramView: View {
                     Text("Suggested days are a guide; train whenever suits you. After you finish a day, the next one comes up on the Workout tab. Exact exercises can shift with recovery.")
                 }
             }
+            .forgeScreen()
             .navigationTitle("Program")
             .sheet(item: $form) { FormDetailView(exerciseID: $0.id) }
             .alert("Workout ready", isPresented: $started) {
