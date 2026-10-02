@@ -14,7 +14,7 @@ Forge plans strength workouts around how recovered each muscle is and the equipm
 - **Progress** – body weight trend against your target, weekly consistency, strength-target progress bars, volume, and full workout history.
 - **Weigh-ins** – prompt on the Workout tab when it's been a week, optional Sunday reminder, saved to Apple Health if enabled.
 - **Cardio** – treadmill (incline walk, run, intervals) and elliptical (steady, intervals). Add cardio to your program as a warm-up or finisher, or start a cardio-only session. Log minutes, speed or resistance, and incline; the next suggestion builds on what you did. Calories and distance are estimated and saved to Apple Health as walking, running or elliptical workouts.
-- **Abhi mode** – Settings → Look. Turns the whole app purple: colours, charts, recovery map, the Watch app and the home-screen icon (iOS asks you to confirm the icon change).
+- **Abhi mode** – Settings → Look. Turns the whole app purple: light purple backgrounds, deep purple text and figures instead of black, purple buttons, charts and recovery map, a purple Watch background, and a purple home-screen icon (iOS asks you to confirm the icon change).
 - **Recovery** – body map coloured from fatigued to fresh.
 - **Apple Health**, **iCloud Drive backup** and **Spotify** as before.
 
