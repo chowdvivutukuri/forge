@@ -6,7 +6,7 @@ final class WorkoutStore: ObservableObject {
     @Published var settings: UserSettings { didSet { stateChanged(pushToWatch: true) } }
     @Published private(set) var history: [Workout] { didSet { stateChanged(pushToWatch: false) } }
     @Published var current: Workout? { didSet { stateChanged(pushToWatch: true) } }
-    @Published var plan: [Workout] { didSet { stateChanged(pushToWatch: false) } }
+    @Published private(set) var weighIns: [WeighIn] { didSet { stateChanged(pushToWatch: false) } }
 
     let health = HealthManager()
     let connectivity = PhoneConnectivity()
@@ -16,7 +16,7 @@ final class WorkoutStore: ObservableObject {
         var settings: UserSettings
         var history: [Workout]
         var current: Workout?
-        var plan: [Workout]?
+        var weighIns: [WeighIn]?
         var savedAt: Date?
     }
 
@@ -29,12 +29,12 @@ final class WorkoutStore: ObservableObject {
             settings = saved.settings
             history = saved.history
             current = saved.current
-            plan = saved.plan ?? []
+            weighIns = saved.weighIns ?? []
         } else {
             settings = UserSettings()
             history = []
             current = nil
-            plan = []
+            weighIns = []
         }
         connectivity.onWorkoutUpdate = { [weak self] w in self?.receiveFromWatch(w, finished: false) }
         connectivity.onWorkoutFinished = { [weak self] w in self?.receiveFromWatch(w, finished: true) }
@@ -48,7 +48,7 @@ final class WorkoutStore: ObservableObject {
     // MARK: Persistence
 
     private func snapshot() -> Data? {
-        let saved = Saved(settings: settings, history: history, current: current, plan: plan, savedAt: Date())
+        let saved = Saved(settings: settings, history: history, current: current, weighIns: weighIns, savedAt: Date())
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
@@ -56,7 +56,7 @@ final class WorkoutStore: ObservableObject {
     }
 
     private func stateChanged(pushToWatch: Bool) {
-        let saved = Saved(settings: settings, history: history, current: current, plan: plan, savedAt: Date())
+        let saved = Saved(settings: settings, history: history, current: current, weighIns: weighIns, savedAt: Date())
         if let data = try? JSONEncoder().encode(saved) {
             try? data.write(to: fileURL, options: .atomic)
         }
@@ -80,47 +80,45 @@ final class WorkoutStore: ObservableObject {
         settings = saved.settings
         history = saved.history
         current = saved.current
-        plan = saved.plan ?? []
+        weighIns = saved.weighIns ?? []
         return true
     }
 
     func eraseAll() {
         history = []
         current = nil
-        plan = []
+        weighIns = []
         settings = UserSettings()
     }
 
     // MARK: Derived
 
     var recovery: [Muscle: Double] { RecoveryEngine.recovery(history: history) }
-    var generator: WorkoutGenerator { WorkoutGenerator(settings: settings, history: history) }
-    var suggestedFocus: SplitFocus { generator.pickFocus(recovery: recovery) }
+    var latestWeightKg: Double? { weighIns.max { $0.date < $1.date }?.kg }
+    var startWeightKg: Double? { weighIns.min { $0.date < $1.date }?.kg }
+    var generator: WorkoutGenerator { WorkoutGenerator(settings: settings, history: history, bodyWeightKg: latestWeightKg) }
+    var programDayIndex: Int {
+        let n = max(1, settings.schedule.count)
+        return ((settings.programDay % n) + n) % n
+    }
+    var needsWeighIn: Bool {
+        guard let last = weighIns.map(\.date).max() else { return true }
+        return Date().timeIntervalSince(last) > 7 * 86_400
+    }
 
     // MARK: Workout actions
 
-    func generateWorkout() { current = generator.generate() }
+    /// Generates the next day of the program.
+    func startNextProgramDay() { current = generator.generateNext() }
+
+    func startProgramDay(_ index: Int) {
+        let schedule = settings.schedule
+        guard schedule.indices.contains(index) else { return }
+        current = generator.generate(focus: schedule[index], recovery: recovery, programDay: index)
+    }
 
     func generateWorkout(focus: SplitFocus) {
         current = generator.generate(focus: focus, recovery: recovery)
-    }
-
-    func makePlan(sessions: Int) { plan = generator.planWeek(sessions: sessions) }
-
-    func startPlanned(_ id: UUID) {
-        guard let i = plan.firstIndex(where: { $0.id == id }) else { return }
-        var w = plan.remove(at: i)
-        w.createdAt = Date()
-        w.updatedAt = Date()
-        // Refresh weights using the latest history.
-        let gen = generator
-        for e in w.exercises.indices {
-            guard let ex = w.exercises[e].exercise else { continue }
-            let reps = w.exercises[e].sets.first?.reps ?? settings.goal.targetReps
-            let weight = gen.suggestedWeight(for: ex, reps: reps)
-            for s in w.exercises[e].sets.indices { w.exercises[e].sets[s].weight = weight }
-        }
-        current = w
     }
 
     func setActiveProfile(_ id: UUID) { settings.activeProfileID = id }
@@ -170,9 +168,12 @@ final class WorkoutStore: ObservableObject {
         w.updatedAt = end
         current = nil
         history.append(w)
+        advanceProgram(after: w)
 
         if settings.healthEnabled, !w.savedToHealth, let start = w.startedAt {
-            let kg = await health.latestBodyMassKg() ?? 75
+            var known = latestWeightKg
+            if known == nil { known = await health.latestBodyMassKg() }
+            let kg = known ?? 75
             let saved = await health.saveStrengthWorkout(start: start, end: end, bodyMassKg: kg)
             if saved, let i = history.firstIndex(where: { $0.id == w.id }) {
                 history[i].savedToHealth = true
@@ -181,18 +182,42 @@ final class WorkoutStore: ObservableObject {
         }
     }
 
+    private func advanceProgram(after w: Workout) {
+        guard let day = w.programDay else { return }
+        settings.programDay = day + 1
+    }
+
     func deleteWorkout(id: UUID) { history.removeAll { $0.id == id } }
 
     private func receiveFromWatch(_ w: Workout, finished: Bool) {
         if finished {
-            if let i = history.firstIndex(where: { $0.id == w.id }) { history[i] = w } else { history.append(w) }
+            if let i = history.firstIndex(where: { $0.id == w.id }) {
+                history[i] = w
+            } else {
+                history.append(w)
+                advanceProgram(after: w)
+            }
             if current?.id == w.id { current = nil }
         } else if let c = current, c.id == w.id, w.updatedAt > c.updatedAt {
             current = w
         }
     }
 
-    // MARK: History helpers
+    // MARK: Body weight
+
+    func logWeight(displayValue: Double, date: Date = Date()) {
+        let kg = settings.kg(fromDisplay: displayValue)
+        guard kg > 20, kg < 400 else { return }
+        weighIns.append(WeighIn(date: date, kg: kg))
+        weighIns.sort { $0.date < $1.date }
+        if settings.healthEnabled {
+            Task { await health.saveBodyMass(kg: kg, date: date) }
+        }
+    }
+
+    func deleteWeighIn(id: UUID) { weighIns.removeAll { $0.id == id } }
+
+    // MARK: Strength
 
     func bestSet(for exerciseID: String) -> LoggedSet? {
         history.flatMap { $0.exercises }
@@ -200,5 +225,34 @@ final class WorkoutStore: ObservableObject {
             .flatMap(\.sets)
             .filter { $0.done && $0.weight > 0 }
             .max { WorkoutGenerator.oneRepMax($0) < WorkoutGenerator.oneRepMax($1) }
+    }
+
+    /// Best estimated 1RM so far (from your lifts), else the starting estimate.
+    func currentOneRepMax(_ exerciseID: String) -> Double? {
+        if let s = bestSet(for: exerciseID) { return WorkoutGenerator.oneRepMax(s) }
+        guard let ex = ExerciseLibrary.byID[exerciseID] else { return nil }
+        return generator.predictedOneRepMax(ex)
+    }
+
+    /// (date, best estimated 1RM that day) for charts.
+    func oneRepMaxHistory(_ exerciseID: String) -> [(Date, Double)] {
+        history.compactMap { w in
+            let best = w.exercises.filter { $0.exerciseID == exerciseID }
+                .flatMap(\.sets).filter { $0.done && $0.weight > 0 }
+                .map(WorkoutGenerator.oneRepMax).max()
+            return best.map { (w.finishedAt ?? w.createdAt, $0) }
+        }
+    }
+
+    func addStrengthTarget(exerciseID: String, target: Double) {
+        let start = currentOneRepMax(exerciseID) ?? 0
+        settings.strengthTargets.removeAll { $0.exerciseID == exerciseID }
+        settings.strengthTargets.append(StrengthTarget(exerciseID: exerciseID, target: target, start: start))
+    }
+
+    func workouts(inWeekOf date: Date = Date()) -> [Workout] {
+        let cal = Calendar.current
+        guard let week = cal.dateInterval(of: .weekOfYear, for: date) else { return [] }
+        return history.filter { week.contains($0.finishedAt ?? $0.createdAt) }
     }
 }

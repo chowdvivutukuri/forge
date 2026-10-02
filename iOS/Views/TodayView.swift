@@ -4,6 +4,7 @@ import UIKit
 struct TodayView: View {
     @EnvironmentObject var store: WorkoutStore
     @State private var pickerTarget: PickerTarget?
+    @State private var formExercise: String?
     @State private var confirmFinish = false
     @State private var confirmDiscard = false
     @State private var finishing = false
@@ -19,7 +20,7 @@ struct TodayView: View {
                 if store.current != nil {
                     ToolbarItem(placement: .topBarTrailing) {
                         Menu {
-                            Button("New Workout", systemImage: "arrow.clockwise") { store.generateWorkout() }
+                            Button("Regenerate Workout", systemImage: "arrow.clockwise") { regenerate() }
                             Button("Discard Workout", systemImage: "trash", role: .destructive) { confirmDiscard = true }
                         } label: { Image(systemName: "ellipsis.circle") }
                     }
@@ -39,6 +40,9 @@ struct TodayView: View {
                     }
                 }
             }
+            .sheet(item: Binding(get: { formExercise.map { FormSheetID(id: $0) } }, set: { formExercise = $0?.id })) { item in
+                FormDetailView(exerciseID: item.id)
+            }
             .confirmationDialog("Finish this workout?", isPresented: $confirmFinish, titleVisibility: .visible) {
                 Button("Finish & Save") {
                     finishing = true
@@ -49,7 +53,7 @@ struct TodayView: View {
                     }
                 }
             } message: {
-                Text("Completed sets are saved to History\(store.settings.healthEnabled ? " and Apple Health" : "").")
+                Text("Completed sets are saved to Progress\(store.settings.healthEnabled ? " and Apple Health" : ""). Your next suggestions adjust to what you lifted.")
             }
             .confirmationDialog("Discard this workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
                 Button("Discard", role: .destructive) { store.discardCurrent(); restEnd = nil }
@@ -64,26 +68,34 @@ struct TodayView: View {
         }
     }
 
+    private func regenerate() {
+        guard let w = store.current else { return }
+        if let day = w.programDay { store.startProgramDay(day) } else { store.startNextProgramDay() }
+    }
+
     // MARK: Empty state
 
     private var emptyState: some View {
-        List {
-            Section {
-                EquipmentProfileBar()
-            } header: {
-                Text("Training with")
+        let schedule = store.settings.schedule
+        let day = store.programDayIndex
+        let focus = schedule.isEmpty ? SplitFocus.fullBody : schedule[day]
+        return List {
+            if store.needsWeighIn {
+                Section { WeighInCard() }
             }
 
             Section {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Suggested today").font(.subheadline).foregroundStyle(.secondary)
-                    Text(store.suggestedFocus.displayName).font(.title.bold())
-                    Text("Based on muscle recovery and the equipment in “\(store.settings.activeProfile.name)”.")
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("DAY \(day + 1) OF \(schedule.count) · \(store.settings.split.displayName.uppercased())")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(focus.displayName).font(.largeTitle.bold())
+                    Text(focus.muscles.prefix(6).map(\.displayName).joined(separator: " · "))
                         .font(.footnote).foregroundStyle(.secondary)
                     Button {
-                        store.generateWorkout()
+                        store.startNextProgramDay()
                     } label: {
-                        Label("Generate Workout", systemImage: "sparkles")
+                        Label("Start Day \(day + 1)", systemImage: "play.fill")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
                     }
@@ -91,19 +103,32 @@ struct TodayView: View {
                     .padding(.top, 4)
 
                     Menu {
-                        ForEach(SplitFocus.allCases.filter { $0 != .auto }) { focus in
-                            Button(focus.displayName) { store.generateWorkout(focus: focus) }
+                        Section("Another program day") {
+                            ForEach(Array(schedule.enumerated()), id: \.offset) { i, f in
+                                Button("Day \(i + 1) · \(f.displayName)") { store.startProgramDay(i) }
+                            }
+                        }
+                        Section("One-off workout") {
+                            ForEach(SplitFocus.pickable) { f in
+                                Button(f.displayName) { store.generateWorkout(focus: f) }
+                            }
                         }
                     } label: {
-                        Label("Pick a focus instead", systemImage: "slider.horizontal.3")
+                        Label("Train something else", systemImage: "slider.horizontal.3")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                 }
                 .padding(.vertical, 6)
+            } footer: {
+                Text("Exercises are picked from the “\(store.settings.activeProfile.name)” equipment, favouring muscles that have recovered.")
             }
 
-            WeekPlanSection()
+            Section {
+                EquipmentProfileBar()
+            } header: {
+                Text("Training with")
+            }
 
             Section("Music") { SpotifyCard() }
         }
@@ -120,6 +145,7 @@ struct TodayView: View {
 
     private var activeWorkout: some View {
         let workout = workoutBinding
+        let calibration = store.generator.calibration
         return List {
             Section {
                 HStack {
@@ -130,6 +156,10 @@ struct TodayView: View {
                 }
                 .font(.subheadline)
                 SpotifyCard(compact: true)
+            } footer: {
+                if abs(calibration - 1) > 0.1 {
+                    Text("Starting weights for new exercises are scaled to \(Int((calibration * 100).rounded()))% of the standard estimate, based on what you've been lifting.")
+                }
             }
 
             ForEach(workout.exercises) { $item in
@@ -138,6 +168,7 @@ struct TodayView: View {
                         item: $item,
                         unit: store.settings.weightUnit,
                         onSetCompleted: { rest in restEnd = Date().addingTimeInterval(TimeInterval(rest)) },
+                        onShowForm: { formExercise = item.exerciseID },
                         onSwap: { store.swap(itemID: item.id) },
                         onChoose: { pickerTarget = .replace(item.id) },
                         onRemove: { store.remove(itemID: item.id) },
@@ -167,6 +198,10 @@ struct TodayView: View {
     }
 }
 
+struct FormSheetID: Identifiable {
+    let id: String
+}
+
 enum PickerTarget: Identifiable {
     case add
     case replace(UUID)
@@ -175,6 +210,43 @@ enum PickerTarget: Identifiable {
         case .add: return "add"
         case .replace(let id): return id.uuidString
         }
+    }
+}
+
+// MARK: - Weigh-in
+
+struct WeighInCard: View {
+    @EnvironmentObject var store: WorkoutStore
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(store.weighIns.isEmpty ? "Log your weight" : "Weekly weigh-in", systemImage: "scalemass")
+                .font(.headline)
+            Text(store.weighIns.isEmpty
+                 ? "Used for starting weights and to track your progress."
+                 : "It's been over a week. Weigh in at the same time of day for the clearest trend.")
+                .font(.caption).foregroundStyle(.secondary)
+            HStack {
+                TextField(store.latestWeightKg.map { Theme.formatWeight(store.settings.displayWeight(kg: $0)) } ?? "Weight", text: $text)
+                    .keyboardType(.decimalPad)
+                    .focused($focused)
+                    .padding(8)
+                    .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                Text(store.settings.weightUnit).foregroundStyle(.secondary)
+                Button("Save") {
+                    if let v = Double(text.replacingOccurrences(of: ",", with: ".")) {
+                        store.logWeight(displayValue: v)
+                        text = ""
+                        focused = false
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(Double(text.replacingOccurrences(of: ",", with: ".")) == nil)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -203,57 +275,16 @@ struct EquipmentProfileBar: View {
                     }
                 }
             }
-            let gear = store.settings.activeProfile.equipment.subtracting([.bodyweight])
-            Text(gear.isEmpty ? "Bodyweight only" : Equipment.allCases.filter { gear.contains($0) }.map(\.displayName).joined(separator: " · "))
+            let gear = Equipment.selectable.filter { $0.isCovered(by: store.settings.activeProfile.equipment) }
+            Text(gear.isEmpty ? "Bodyweight only" : gear.map(\.displayName).joined(separator: " · "))
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .lineLimit(3)
             Text("\(store.generator.availableExercises.count) exercises available")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
         .padding(.vertical, 4)
-    }
-}
-
-// MARK: - Week plan
-
-struct WeekPlanSection: View {
-    @EnvironmentObject var store: WorkoutStore
-
-    var body: some View {
-        Section {
-            if store.plan.isEmpty {
-                Menu {
-                    ForEach(2...6, id: \.self) { n in
-                        Button("\(n) workouts") { store.makePlan(sessions: n) }
-                    }
-                } label: {
-                    Label("Plan my week", systemImage: "calendar.badge.plus")
-                }
-            } else {
-                ForEach(store.plan) { w in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(w.title).font(.headline)
-                            Text("\(w.createdAt.formatted(.dateTime.weekday(.wide))) · \(w.exercises.count) exercises")
-                                .font(.caption).foregroundStyle(.secondary)
-                            Text(w.exercises.prefix(3).map(\.name).joined(separator: ", "))
-                                .font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
-                        }
-                        Spacer()
-                        Button("Start") { store.startPlanned(w.id) }
-                            .buttonStyle(.bordered)
-                    }
-                }
-                Button("Clear plan", role: .destructive) { store.plan = [] }
-            }
-        } header: {
-            Text("This week")
-        } footer: {
-            if !store.plan.isEmpty {
-                Text("Planned with your “\(store.settings.activeProfile.name)” equipment. Weights update when you start each session.")
-            }
-        }
     }
 }
 

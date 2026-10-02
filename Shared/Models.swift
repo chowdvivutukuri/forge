@@ -1,5 +1,13 @@
 import Foundation
 
+// MARK: - Decoding helper (new fields get defaults so older saved data still loads)
+
+extension KeyedDecodingContainer {
+    func value<T: Decodable>(_ key: Key, _ fallback: @autoclosure () -> T) -> T {
+        ((try? decodeIfPresent(T.self, forKey: key)) ?? nil) ?? fallback()
+    }
+}
+
 // MARK: - Muscles
 
 enum Muscle: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
@@ -40,27 +48,75 @@ enum Muscle: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
         default: return 48
         }
     }
+
+    var group: MuscleGroup {
+        switch self {
+        case .chest: return .chest
+        case .frontDelts, .sideDelts, .rearDelts: return .shoulders
+        case .triceps, .biceps, .forearms: return .arms
+        case .abs, .obliques: return .core
+        case .traps, .upperBack, .lats, .lowerBack: return .back
+        case .glutes, .quads, .hamstrings, .adductors, .calves: return .legs
+        }
+    }
+}
+
+enum MuscleGroup: String, CaseIterable, Identifiable, Sendable {
+    case chest, back, shoulders, arms, legs, core
+    var id: String { rawValue }
+    var displayName: String { rawValue.capitalized }
 }
 
 // MARK: - Equipment
 
 enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable {
-    case barbell, dumbbell, kettlebell, cable, machine, bench, pullupBar, dipStation, bands, bodyweight
+    // Free weights and stations
+    case barbell, dumbbell, kettlebell, bench, pullupBar, dipStation, bands, bodyweight
+    // Cables and machines
+    case cable, smith, legPress, hackSquat, legExtension, legCurl, chestPress, pecDeck, shoulderPress
+    case latPulldown, cableRow, rowMachine, assistedPullup, preacher, abductor, adductor, calfMachine
+    case abCrunch, backExtension
+    /// Older saved setups used one "machines" switch; it still means "every machine".
+    case machine
 
     var id: String { rawValue }
+
+    static let freeWeights: [Equipment] = [.barbell, .dumbbell, .kettlebell, .bench, .pullupBar, .dipStation, .bands]
+    static let machines: [Equipment] = [.cable, .smith, .legPress, .hackSquat, .legExtension, .legCurl, .chestPress,
+                                        .pecDeck, .shoulderPress, .latPulldown, .cableRow, .rowMachine, .assistedPullup,
+                                        .preacher, .abductor, .adductor, .calfMachine, .abCrunch, .backExtension]
+    static var selectable: [Equipment] { freeWeights + machines }
 
     var displayName: String {
         switch self {
         case .barbell: return "Barbell & Plates"
         case .dumbbell: return "Dumbbells"
         case .kettlebell: return "Kettlebells"
-        case .cable: return "Cable Machine"
-        case .machine: return "Weight Machines"
         case .bench: return "Bench"
         case .pullupBar: return "Pull-up Bar"
         case .dipStation: return "Dip Station"
         case .bands: return "Resistance Bands"
         case .bodyweight: return "Bodyweight"
+        case .cable: return "Cable Station"
+        case .smith: return "Smith Machine"
+        case .legPress: return "Leg Press"
+        case .hackSquat: return "Hack Squat"
+        case .legExtension: return "Leg Extension"
+        case .legCurl: return "Leg Curl"
+        case .chestPress: return "Chest Press Machine"
+        case .pecDeck: return "Pec Deck / Rear Delt"
+        case .shoulderPress: return "Shoulder Press Machine"
+        case .latPulldown: return "Lat Pulldown"
+        case .cableRow: return "Seated Cable Row"
+        case .rowMachine: return "Chest-Supported Row"
+        case .assistedPullup: return "Assisted Pull-up / Dip"
+        case .preacher: return "Preacher Curl"
+        case .abductor: return "Hip Abduction"
+        case .adductor: return "Hip Adduction"
+        case .calfMachine: return "Calf Raise Machine"
+        case .abCrunch: return "Ab Crunch Machine"
+        case .backExtension: return "Back Extension / Roman Chair"
+        case .machine: return "All Machines"
         }
     }
 
@@ -69,14 +125,23 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
         case .barbell: return "figure.strengthtraining.traditional"
         case .dumbbell: return "dumbbell.fill"
         case .kettlebell: return "scalemass.fill"
-        case .cable: return "cable.connector"
-        case .machine: return "gearshape.2.fill"
         case .bench: return "bed.double.fill"
         case .pullupBar: return "figure.climbing"
         case .dipStation: return "arrow.down.to.line"
         case .bands: return "lasso"
         case .bodyweight: return "figure.walk"
+        case .cable: return "cable.connector"
+        default: return "gearshape.2.fill"
         }
+    }
+
+    /// True when the given set of equipment covers this item.
+    func isCovered(by have: Set<Equipment>) -> Bool {
+        if self == .bodyweight || have.contains(self) { return true }
+        if have.contains(.machine), Equipment.machines.contains(self) { return true }
+        // A cable station can do pulldowns and seated rows with the right attachment.
+        if (self == .latPulldown || self == .cableRow), have.contains(.cable) { return true }
+        return false
     }
 }
 
@@ -85,35 +150,54 @@ struct EquipmentProfile: Codable, Identifiable, Hashable, Sendable {
     var id: UUID = UUID()
     var name: String
     var equipment: Set<Equipment>
+    /// What the user typed, e.g. "pec deck, smith machine, leg press".
+    var machineText: String = ""
 
-    static let gym = EquipmentProfile(name: "Gym", equipment: Set(Equipment.allCases))
+    init(id: UUID = UUID(), name: String, equipment: Set<Equipment>, machineText: String = "") {
+        self.id = id; self.name = name; self.equipment = equipment; self.machineText = machineText
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = c.value(.id, UUID())
+        name = c.value(.name, "Setup")
+        let raw: [String] = c.value(.equipment, [])
+        equipment = Set(raw.compactMap(Equipment.init(rawValue:)))
+        machineText = c.value(.machineText, "")
+    }
+
+    static let gym = EquipmentProfile(name: "Gym", equipment: Set(Equipment.selectable))
     static let home = EquipmentProfile(name: "Home", equipment: [.dumbbell, .bands, .pullupBar, .bodyweight])
 }
 
-// MARK: - Training options
+// MARK: - Profile
 
 enum TrainingGoal: String, Codable, CaseIterable, Identifiable, Sendable {
-    case strength, muscle, endurance
+    case muscle, strength, fatLoss, endurance
 
     var id: String { rawValue }
     var displayName: String {
         switch self {
-        case .strength: return "Strength"
+        case .strength: return "Get Stronger"
         case .muscle: return "Build Muscle"
+        case .fatLoss: return "Lose Fat"
         case .endurance: return "Endurance"
         }
     }
-    var sets: Int {
+    var blurb: String {
         switch self {
-        case .strength: return 4
-        case .muscle: return 3
-        case .endurance: return 3
+        case .strength: return "Heavier weights, fewer reps, longer rest."
+        case .muscle: return "Moderate weights, 8–12 reps."
+        case .fatLoss: return "Keep strength while losing fat. Shorter rests."
+        case .endurance: return "Lighter weights, 15+ reps."
         }
     }
+    var sets: Int { self == .strength ? 4 : 3 }
     var targetReps: Int {
         switch self {
         case .strength: return 5
         case .muscle: return 10
+        case .fatLoss: return 12
         case .endurance: return 15
         }
     }
@@ -121,15 +205,76 @@ enum TrainingGoal: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .strength: return 180
         case .muscle: return 90
-        case .endurance: return 60
+        case .fatLoss: return 60
+        case .endurance: return 45
         }
     }
 }
 
-enum SplitFocus: String, Codable, CaseIterable, Identifiable, Sendable {
-    case auto, fullBody, upper, lower, push, pull, legs
+enum ExperienceLevel: String, Codable, CaseIterable, Identifiable, Sendable {
+    case beginner, intermediate, advanced
 
     var id: String { rawValue }
+    var displayName: String { rawValue.capitalized }
+    var blurb: String {
+        switch self {
+        case .beginner: return "New to lifting or less than 6 months of steady training."
+        case .intermediate: return "6 months to 2 years of regular training."
+        case .advanced: return "2+ years, comfortable with heavy compound lifts."
+        }
+    }
+    /// Multiplier on intermediate strength standards.
+    var strengthFactor: Double {
+        switch self {
+        case .beginner: return 0.55
+        case .intermediate: return 1.0
+        case .advanced: return 1.4
+        }
+    }
+}
+
+enum Sex: String, Codable, CaseIterable, Identifiable, Sendable {
+    case male, female, unspecified
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .male: return "Male"
+        case .female: return "Female"
+        case .unspecified: return "Prefer not to say"
+        }
+    }
+    func strengthFactor(lowerBody: Bool) -> Double {
+        switch self {
+        case .male: return 1.0
+        case .female: return lowerBody ? 0.75 : 0.62
+        case .unspecified: return lowerBody ? 0.88 : 0.82
+        }
+    }
+}
+
+struct WeighIn: Codable, Identifiable, Hashable, Sendable {
+    var id: UUID = UUID()
+    var date: Date
+    var kg: Double
+}
+
+/// A strength goal, measured as an estimated one-rep max in the user's weight unit.
+struct StrengthTarget: Codable, Identifiable, Hashable, Sendable {
+    var id: UUID = UUID()
+    var exerciseID: String
+    var target: Double
+    var start: Double
+    var createdAt: Date = Date()
+}
+
+// MARK: - Splits and programs
+
+enum SplitFocus: String, Codable, CaseIterable, Identifiable, Sendable {
+    case auto, fullBody, upper, lower, push, pull, legs, chest, back, shoulders, arms, shouldersArms
+
+    var id: String { rawValue }
+    static var pickable: [SplitFocus] { allCases.filter { $0 != .auto } }
+
     var displayName: String {
         switch self {
         case .auto: return "Auto (by recovery)"
@@ -139,6 +284,11 @@ enum SplitFocus: String, Codable, CaseIterable, Identifiable, Sendable {
         case .push: return "Push"
         case .pull: return "Pull"
         case .legs: return "Legs"
+        case .chest: return "Chest"
+        case .back: return "Back"
+        case .shoulders: return "Shoulders"
+        case .arms: return "Arms"
+        case .shouldersArms: return "Shoulders & Arms"
         }
     }
     var muscles: [Muscle] {
@@ -149,6 +299,79 @@ enum SplitFocus: String, Codable, CaseIterable, Identifiable, Sendable {
         case .push: return [.chest, .frontDelts, .sideDelts, .triceps]
         case .pull: return [.lats, .upperBack, .rearDelts, .traps, .biceps, .forearms]
         case .legs: return [.quads, .hamstrings, .glutes, .adductors, .calves]
+        case .chest: return [.chest, .frontDelts]
+        case .back: return [.lats, .upperBack, .traps, .lowerBack, .rearDelts]
+        case .shoulders: return [.frontDelts, .sideDelts, .rearDelts, .traps]
+        case .arms: return [.biceps, .triceps, .forearms]
+        case .shouldersArms: return [.frontDelts, .sideDelts, .rearDelts, .biceps, .triceps]
+        }
+    }
+}
+
+enum ProgramSplit: String, Codable, CaseIterable, Identifiable, Sendable {
+    case fullBody, upperLower, pushPullLegs, upperLowerPPL, broSplit
+
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .fullBody: return "Full Body"
+        case .upperLower: return "Upper / Lower"
+        case .pushPullLegs: return "Push / Pull / Legs"
+        case .upperLowerPPL: return "Upper / Lower + PPL"
+        case .broSplit: return "Body-Part Split"
+        }
+    }
+    var blurb: String {
+        switch self {
+        case .fullBody: return "Every muscle each session. Best for 2–3 days a week."
+        case .upperLower: return "Alternate upper and lower body. Great at 4 days."
+        case .pushPullLegs: return "Push muscles, pull muscles, legs. Best at 3 or 6 days."
+        case .upperLowerPPL: return "Upper, Lower, Push, Pull, Legs. Built for 5 days."
+        case .broSplit: return "One or two body parts per day. For 4–6 days."
+        }
+    }
+
+    static func recommended(days: Int) -> ProgramSplit {
+        switch days {
+        case ...3: return .fullBody
+        case 4: return .upperLower
+        case 5: return .upperLowerPPL
+        default: return .pushPullLegs
+        }
+    }
+
+    func schedule(days n: Int) -> [SplitFocus] {
+        let days = max(1, min(7, n))
+        let cycle: [SplitFocus]
+        switch self {
+        case .fullBody:
+            cycle = [.fullBody]
+        case .upperLower:
+            cycle = days == 3 ? [.upper, .lower, .fullBody] : [.upper, .lower]
+        case .pushPullLegs:
+            cycle = days == 4 ? [.push, .pull, .legs, .upper] : (days == 5 ? [.push, .pull, .legs, .upper, .lower] : [.push, .pull, .legs])
+        case .upperLowerPPL:
+            cycle = days <= 3 ? [.upper, .lower, .fullBody] : (days == 4 ? [.upper, .lower, .push, .pull] : [.upper, .lower, .push, .pull, .legs, .fullBody])
+        case .broSplit:
+            switch days {
+            case ...3: cycle = [.push, .pull, .legs]
+            case 4: cycle = [.chest, .back, .legs, .shouldersArms]
+            default: cycle = [.chest, .back, .legs, .shoulders, .arms, .legs]
+            }
+        }
+        return (0..<days).map { cycle[$0 % cycle.count] }
+    }
+
+    /// Suggested weekdays (1 = Monday) for a number of training days.
+    static func suggestedWeekdays(days: Int) -> [Int] {
+        switch days {
+        case 1: return [1]
+        case 2: return [1, 4]
+        case 3: return [1, 3, 5]
+        case 4: return [1, 2, 4, 5]
+        case 5: return [1, 2, 3, 5, 6]
+        case 6: return [1, 2, 3, 4, 5, 6]
+        default: return [1, 2, 3, 4, 5, 6, 7]
         }
     }
 }
@@ -166,8 +389,10 @@ struct Exercise: Codable, Identifiable, Hashable, Sendable {
 
     /// Exercises with no external load are logged as reps only.
     var isBodyweight: Bool {
-        equipment.allSatisfy { [.bodyweight, .pullupBar, .dipStation, .bench, .bands].contains($0) }
+        equipment.allSatisfy { [.bodyweight, .pullupBar, .dipStation, .bench, .bands, .assistedPullup].contains($0) }
     }
+    var usesMachine: Bool { equipment.contains { Equipment.machines.contains($0) } }
+    var isLowerBody: Bool { primary.contains { $0.group == .legs } }
 }
 
 struct LoggedSet: Codable, Identifiable, Hashable, Sendable {
@@ -182,6 +407,24 @@ struct WorkoutExercise: Codable, Identifiable, Hashable, Sendable {
     var exerciseID: String
     var sets: [LoggedSet]
     var restSeconds: Int
+    /// What the app suggested when the workout was planned.
+    var suggestedWeight: Double?
+    var targetReps: Int?
+
+    init(id: UUID = UUID(), exerciseID: String, sets: [LoggedSet], restSeconds: Int, suggestedWeight: Double? = nil, targetReps: Int? = nil) {
+        self.id = id; self.exerciseID = exerciseID; self.sets = sets; self.restSeconds = restSeconds
+        self.suggestedWeight = suggestedWeight; self.targetReps = targetReps
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = c.value(.id, UUID())
+        exerciseID = try c.decode(String.self, forKey: .exerciseID)
+        sets = c.value(.sets, [])
+        restSeconds = c.value(.restSeconds, 90)
+        suggestedWeight = c.value(.suggestedWeight, nil)
+        targetReps = c.value(.targetReps, nil)
+    }
 
     var exercise: Exercise? { ExerciseLibrary.byID[exerciseID] }
     var name: String { exercise?.name ?? exerciseID }
@@ -200,6 +443,30 @@ struct Workout: Codable, Identifiable, Hashable, Sendable {
     var calories: Double?
     var averageHeartRate: Double?
     var savedToHealth: Bool = false
+    /// Program day (0-based) this workout was for.
+    var programDay: Int?
+
+    init(id: UUID = UUID(), title: String, createdAt: Date = Date(), exercises: [WorkoutExercise],
+         equipmentProfileName: String? = nil, programDay: Int? = nil) {
+        self.id = id; self.title = title; self.createdAt = createdAt; self.exercises = exercises
+        self.equipmentProfileName = equipmentProfileName; self.programDay = programDay
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = c.value(.id, UUID())
+        title = c.value(.title, "Workout")
+        createdAt = c.value(.createdAt, Date())
+        startedAt = c.value(.startedAt, nil)
+        finishedAt = c.value(.finishedAt, nil)
+        updatedAt = c.value(.updatedAt, Date())
+        exercises = c.value(.exercises, [])
+        equipmentProfileName = c.value(.equipmentProfileName, nil)
+        calories = c.value(.calories, nil)
+        averageHeartRate = c.value(.averageHeartRate, nil)
+        savedToHealth = c.value(.savedToHealth, false)
+        programDay = c.value(.programDay, nil)
+    }
 
     var completedSetCount: Int { exercises.reduce(0) { $0 + $1.completedSets } }
     var volume: Double {
@@ -214,16 +481,65 @@ struct Workout: Codable, Identifiable, Hashable, Sendable {
 // MARK: - Settings
 
 struct UserSettings: Codable, Equatable, Sendable {
+    // Training
     var goal: TrainingGoal = .muscle
     var focus: SplitFocus = .auto
     var exercisesPerWorkout: Int = 5
+    var sessionMinutes: Int = 45
     var useKilograms: Bool = false
     var healthEnabled: Bool = false
     var excludedExerciseIDs: Set<String> = []
     var profiles: [EquipmentProfile] = [.gym, .home]
     var activeProfileID: UUID?
+    var customMachineMap: [String: String] = [:]
+    // Program
+    var split: ProgramSplit = .fullBody
+    var daysPerWeek: Int = 3
+    var programDay: Int = 0
+    // About you
+    var onboarded: Bool = false
+    var sex: Sex = .unspecified
+    var heightCm: Double?
+    var experience: ExperienceLevel = .beginner
+    // Targets
+    var targetWeightKg: Double?
+    var targetDate: Date?
+    var strengthTargets: [StrengthTarget] = []
+    var weighInReminder: Bool = false
+    // Music
     var spotifyClientID: String = ""
     var spotifyPlaylistURI: String = ""
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = UserSettings()
+        goal = c.value(.goal, d.goal)
+        focus = c.value(.focus, d.focus)
+        exercisesPerWorkout = c.value(.exercisesPerWorkout, d.exercisesPerWorkout)
+        sessionMinutes = c.value(.sessionMinutes, d.sessionMinutes)
+        useKilograms = c.value(.useKilograms, d.useKilograms)
+        healthEnabled = c.value(.healthEnabled, d.healthEnabled)
+        excludedExerciseIDs = c.value(.excludedExerciseIDs, d.excludedExerciseIDs)
+        profiles = c.value(.profiles, d.profiles)
+        activeProfileID = c.value(.activeProfileID, nil)
+        customMachineMap = c.value(.customMachineMap, d.customMachineMap)
+        split = c.value(.split, d.split)
+        daysPerWeek = c.value(.daysPerWeek, d.daysPerWeek)
+        programDay = c.value(.programDay, d.programDay)
+        // Anyone with saved data from the first version has already set things up.
+        onboarded = c.value(.onboarded, true)
+        sex = c.value(.sex, d.sex)
+        heightCm = c.value(.heightCm, nil)
+        experience = c.value(.experience, d.experience)
+        targetWeightKg = c.value(.targetWeightKg, nil)
+        targetDate = c.value(.targetDate, nil)
+        strengthTargets = c.value(.strengthTargets, d.strengthTargets)
+        weighInReminder = c.value(.weighInReminder, d.weighInReminder)
+        spotifyClientID = c.value(.spotifyClientID, d.spotifyClientID)
+        spotifyPlaylistURI = c.value(.spotifyPlaylistURI, d.spotifyPlaylistURI)
+    }
 
     var activeProfile: EquipmentProfile {
         profiles.first { $0.id == activeProfileID } ?? profiles.first ?? .gym
@@ -231,4 +547,24 @@ struct UserSettings: Codable, Equatable, Sendable {
     var availableEquipment: Set<Equipment> { activeProfile.equipment.union([.bodyweight]) }
     var weightUnit: String { useKilograms ? "kg" : "lb" }
     var weightStep: Double { useKilograms ? 2.5 : 5 }
+
+    var schedule: [SplitFocus] { split.schedule(days: daysPerWeek) }
+    var nextFocus: SplitFocus {
+        let s = schedule
+        return s[((programDay % s.count) + s.count) % s.count]
+    }
+
+    static func exercises(forMinutes m: Int) -> Int {
+        switch m {
+        case ..<35: return 4
+        case ..<50: return 5
+        case ..<65: return 6
+        case ..<80: return 7
+        default: return 8
+        }
+    }
+
+    // Unit helpers (body weight is stored in kg).
+    func displayWeight(kg: Double) -> Double { useKilograms ? kg : kg * 2.20462 }
+    func kg(fromDisplay v: Double) -> Double { useKilograms ? v : v / 2.20462 }
 }

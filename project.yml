@@ -35,7 +35,7 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         LSApplicationQueriesSchemes: [spotify]
         NSHealthShareUsageDescription: "Forge reads workouts, heart rate and body weight to estimate calories and show your training."
-        NSHealthUpdateUsageDescription: "Forge saves your strength workouts to Apple Health."
+        NSHealthUpdateUsageDescription: "Forge saves your strength workouts and weigh-ins to Apple Health."
     entitlements:
       path: Support/iOS.entitlements
       properties:

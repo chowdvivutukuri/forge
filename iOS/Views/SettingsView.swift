@@ -5,20 +5,26 @@ struct SettingsView: View {
     @EnvironmentObject var store: WorkoutStore
     @EnvironmentObject var spotify: SpotifyManager
     @State private var confirmErase = false
+    @State private var editProfile = false
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Training") {
-                    Picker("Goal", selection: $store.settings.goal) {
-                        ForEach(TrainingGoal.allCases) { Text($0.displayName).tag($0) }
+                Section {
+                    Button {
+                        editProfile = true
+                    } label: {
+                        Label("Profile, goals & targets", systemImage: "person.crop.circle")
                     }
-                    Picker("Focus", selection: $store.settings.focus) {
-                        ForEach(SplitFocus.allCases) { Text($0.displayName).tag($0) }
-                    }
-                    Stepper("Exercises per workout: \(store.settings.exercisesPerWorkout)",
-                            value: $store.settings.exercisesPerWorkout, in: 3...10)
                     Toggle("Use kilograms", isOn: $store.settings.useKilograms)
+                    Toggle("Weekly weigh-in reminder", isOn: Binding(
+                        get: { store.settings.weighInReminder },
+                        set: { store.settings.weighInReminder = $0; Reminders.update(enabled: $0) }
+                    ))
+                } header: {
+                    Text("You")
+                } footer: {
+                    Text("\(store.settings.experience.displayName) · \(store.settings.goal.displayName). Change your split and days on the Program tab.")
                 }
 
                 Section {
@@ -29,7 +35,7 @@ struct SettingsView: View {
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(profile.name)
-                                    Text("\(profile.equipment.subtracting([.bodyweight]).count) types of equipment")
+                                    Text("\(ExerciseLibrary.available(with: profile.equipment).count) exercises available")
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                                 Spacer()
@@ -99,6 +105,7 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .sheet(isPresented: $editProfile) { OnboardingView(mode: .edit) }
             .confirmationDialog("Erase all workouts and settings on this iPhone?", isPresented: $confirmErase, titleVisibility: .visible) {
                 Button("Erase", role: .destructive) { store.eraseAll() }
             } message: {
@@ -117,32 +124,11 @@ struct EquipmentProfileEditor: View {
     var body: some View {
         Form {
             if let i = index {
-                Section("Name") {
-                    TextField("Name", text: $store.settings.profiles[i].name)
-                }
-                Section {
-                    ForEach(Equipment.allCases.filter { $0 != .bodyweight }) { eq in
-                        Toggle(isOn: Binding(
-                            get: { store.settings.profiles[i].equipment.contains(eq) },
-                            set: { on in
-                                if on { store.settings.profiles[i].equipment.insert(eq) }
-                                else { store.settings.profiles[i].equipment.remove(eq) }
-                            }
-                        )) {
-                            Label(eq.displayName, systemImage: eq.symbol)
-                        }
-                    }
-                } header: {
-                    Text("Equipment available")
-                } footer: {
-                    let count = ExerciseLibrary.available(with: store.settings.profiles[i].equipment,
-                                                          excluding: store.settings.excludedExerciseIDs).count
-                    Text("Bodyweight exercises are always included. \(count) exercises available with this setup.")
-                }
                 Section {
                     Button("Use this setup") { store.setActiveProfile(profileID) }
                         .disabled(store.settings.activeProfile.id == profileID)
                 }
+                EquipmentEditor(profile: $store.settings.profiles[i], customMap: $store.settings.customMachineMap)
             }
         }
         .navigationTitle(index.map { store.settings.profiles[$0].name } ?? "Setup")

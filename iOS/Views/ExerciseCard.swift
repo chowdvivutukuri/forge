@@ -4,6 +4,7 @@ struct ExerciseCard: View {
     @Binding var item: WorkoutExercise
     let unit: String
     var onSetCompleted: (Int) -> Void
+    var onShowForm: () -> Void
     var onSwap: () -> Void
     var onChoose: () -> Void
     var onRemove: () -> Void
@@ -11,20 +12,52 @@ struct ExerciseCard: View {
 
     private var isBodyweight: Bool { item.exercise?.isBodyweight ?? false }
 
+    /// Changing a set's weight also updates later sets that haven't been done yet.
+    private func weightBinding(_ index: Int) -> Binding<Double> {
+        Binding(
+            get: { item.sets.indices.contains(index) ? item.sets[index].weight : 0 },
+            set: { newValue in
+                guard item.sets.indices.contains(index) else { return }
+                let old = item.sets[index].weight
+                item.sets[index].weight = newValue
+                for j in item.sets.indices where j > index && !item.sets[j].done && item.sets[j].weight == old {
+                    item.sets[j].weight = newValue
+                }
+            }
+        )
+    }
+
+    private func repsBinding(_ index: Int) -> Binding<Int> {
+        Binding(
+            get: { item.sets.indices.contains(index) ? item.sets[index].reps : 0 },
+            set: { if item.sets.indices.contains(index) { item.sets[index].reps = $0 } }
+        )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 10) {
+                Button(action: onShowForm) {
+                    FormFigureView(exerciseID: item.exerciseID)
+                        .frame(width: 58, height: 58)
+                        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.borderless)
+                .accessibilityLabel("Show form for \(item.name)")
+
                 VStack(alignment: .leading, spacing: 3) {
                     Text(item.name).font(.headline)
                     if let ex = item.exercise {
                         Text(ex.primary.map(\.displayName).joined(separator: ", "))
                             .font(.caption).foregroundStyle(.secondary)
-                        Text(ex.equipment.filter { $0 != .bodyweight }.map(\.displayName).joined(separator: " + "))
-                            .font(.caption2).foregroundStyle(.tertiary)
                     }
+                    Button("How to do it", action: onShowForm)
+                        .font(.caption.weight(.semibold))
+                        .buttonStyle(.borderless)
                 }
                 Spacer()
                 Menu {
+                    Button("How to do it", systemImage: "figure.strengthtraining.traditional", action: onShowForm)
                     Button("Swap for similar", systemImage: "arrow.triangle.2.circlepath", action: onSwap)
                     Button("Choose exercise…", systemImage: "list.bullet", action: onChoose)
                     Button("Never suggest this", systemImage: "hand.thumbsdown", action: onExclude)
@@ -45,25 +78,24 @@ struct ExerciseCard: View {
             .font(.caption2.weight(.semibold))
             .foregroundStyle(.secondary)
 
-            ForEach($item.sets) { $set in
-                let index = (item.sets.firstIndex { $0.id == set.id } ?? 0) + 1
+            ForEach(Array(item.sets.enumerated()), id: \.element.id) { index, set in
                 HStack {
-                    Text("\(index)")
+                    Text("\(index + 1)")
                         .font(.subheadline.monospacedDigit())
                         .frame(width: 34, alignment: .leading)
-                    TextField("0", value: $set.weight, format: .number)
+                    TextField("0", value: weightBinding(index), format: .number)
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.center)
                         .padding(.vertical, 6)
                         .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
-                    TextField("0", value: $set.reps, format: .number)
+                    TextField("0", value: repsBinding(index), format: .number)
                         .keyboardType(.numberPad)
                         .multilineTextAlignment(.center)
                         .padding(.vertical, 6)
                         .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
                     Button {
-                        set.done.toggle()
-                        if set.done { onSetCompleted(item.restSeconds) }
+                        item.sets[index].done.toggle()
+                        if item.sets[index].done { onSetCompleted(item.restSeconds) }
                     } label: {
                         Image(systemName: set.done ? "checkmark.circle.fill" : "circle")
                             .font(.title2)
@@ -92,6 +124,17 @@ struct ExerciseCard: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             .font(.subheadline)
+
+            if let suggested = item.suggestedWeight, suggested > 0, !isBodyweight {
+                let used = item.sets.first?.weight ?? suggested
+                if abs(used - suggested) >= 0.5 {
+                    Text("Suggested \(Theme.formatWeight(suggested)) \(unit). Forge will base your next suggestion on what you log.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                } else if let reps = item.targetReps {
+                    Text("Target: \(item.sets.count) × \(reps). Hit every rep and the weight goes up next time.")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
         }
         .padding(.vertical, 4)
     }
@@ -102,6 +145,7 @@ struct ExercisePickerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
     @State private var showAll = false
+    @State private var info: FormSheetID?
     let onPick: (Exercise) -> Void
 
     private var exercises: [Exercise] {
@@ -109,7 +153,8 @@ struct ExercisePickerView: View {
         guard !search.isEmpty else { return base }
         return base.filter {
             $0.name.localizedCaseInsensitiveContains(search) ||
-            $0.primary.contains { $0.displayName.localizedCaseInsensitiveContains(search) }
+            $0.primary.contains { $0.displayName.localizedCaseInsensitiveContains(search) } ||
+            $0.equipment.contains { $0.displayName.localizedCaseInsensitiveContains(search) }
         }
     }
 
@@ -118,32 +163,45 @@ struct ExercisePickerView: View {
             List {
                 Toggle("Include exercises needing other equipment", isOn: $showAll)
                     .font(.subheadline)
-                ForEach(Muscle.allCases) { muscle in
-                    let group = exercises.filter { $0.primary.first == muscle }
-                    if !group.isEmpty {
-                        Section(muscle.displayName) {
-                            ForEach(group) { ex in
-                                Button {
-                                    onPick(ex)
-                                    dismiss()
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(ex.name).foregroundStyle(.primary)
-                                        Text(ex.equipment.map(\.displayName).joined(separator: " + "))
-                                            .font(.caption).foregroundStyle(.secondary)
+                ForEach(MuscleGroup.allCases) { group in
+                    let items = exercises.filter { $0.primary.first?.group == group }
+                    if !items.isEmpty {
+                        Section(group.displayName) {
+                            ForEach(items) { ex in
+                                HStack(spacing: 10) {
+                                    FormFigureView(exerciseID: ex.id)
+                                        .frame(width: 44, height: 44)
+                                    Button {
+                                        onPick(ex)
+                                        dismiss()
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(ex.name).foregroundStyle(.primary)
+                                            Text(ex.equipment.map(\.displayName).joined(separator: " + "))
+                                                .font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
                                     }
+                                    .buttonStyle(.borderless)
+                                    Button {
+                                        info = FormSheetID(id: ex.id)
+                                    } label: {
+                                        Image(systemName: "info.circle")
+                                    }
+                                    .buttonStyle(.borderless)
                                 }
                             }
                         }
                     }
                 }
             }
-            .searchable(text: $search, prompt: "Search exercises or muscles")
+            .searchable(text: $search, prompt: "Search exercises, muscles, machines")
             .navigationTitle("Exercises")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
+            .sheet(item: $info) { FormDetailView(exerciseID: $0.id) }
         }
     }
 }

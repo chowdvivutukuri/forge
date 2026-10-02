@@ -12,6 +12,7 @@ struct WatchExerciseView: View {
     @State private var reps: Double = 0
     @State private var editing: Field = .reps
     @State private var restEnd: Date?
+    @State private var showForm = false
 
     private var item: WorkoutExercise? { store.workout?.exercises.first { $0.id == itemID } }
     private var nextSet: LoggedSet? { item?.sets.first { !$0.done } }
@@ -77,6 +78,17 @@ struct WatchExerciseView: View {
                                   isHapticFeedbackEnabled: true)
             .onAppear { load() }
             .onChange(of: nextSet?.id) { _, _ in load() }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showForm = true
+                    } label: {
+                        Image(systemName: "figure.strengthtraining.traditional")
+                    }
+                    .accessibilityLabel("Show form")
+                }
+            }
+            .sheet(isPresented: $showForm) { WatchFormView(exerciseID: item.exerciseID) }
         }
     }
 
@@ -121,5 +133,37 @@ struct WatchExerciseView: View {
                 restEnd = nil
             }
         }
+    }
+}
+
+/// Animated form guide on the watch. Tap the figure to switch between side and front.
+struct WatchFormView: View {
+    let exerciseID: String
+    @State private var angle: FormAngle = .side
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 8) {
+                FormFigureView(exerciseID: exerciseID, yaw: angle.yaw, spin: angle == .turn,
+                               palette: FormPalette(ink: .white, accent: Color(red: 1.0, green: 0.48, blue: 0.24), face: .black))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 120)
+                    .onTapGesture {
+                        let all = FormAngle.allCases
+                        angle = all[((all.firstIndex(of: angle) ?? 0) + 1) % all.count]
+                    }
+                Text("\(angle.label) view · tap to change")
+                    .font(.caption2).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity)
+                ForEach(Array(FormLibrary.cues(for: exerciseID).enumerated()), id: \.offset) { i, cue in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text("\(i + 1)").font(.caption.bold()).foregroundStyle(.orange)
+                        Text(cue).font(.caption)
+                    }
+                }
+            }
+        }
+        .navigationTitle(ExerciseLibrary.byID[exerciseID]?.name ?? "Form")
+        .onAppear { angle = FormLibrary.defaultYaw(for: exerciseID) == 0 ? .front : .side }
     }
 }

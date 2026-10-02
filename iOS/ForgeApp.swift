@@ -17,7 +17,7 @@ struct ForgeApp: App {
 }
 
 enum Theme {
-    static let accent = Color(red: 1.0, green: 0.42, blue: 0.16)
+    static let accent = Color(red: 0.89, green: 0.35, blue: 0.12)
 
     /// Red (fatigued) → yellow → green (fresh).
     static func recoveryColor(_ value: Double) -> Color {
@@ -27,19 +27,36 @@ enum Theme {
     static func formatWeight(_ w: Double) -> String {
         w.formatted(.number.precision(.fractionLength(0...1)))
     }
+
+    static func weekdayName(_ isoWeekday: Int) -> String {
+        // 1 = Monday ... 7 = Sunday
+        let symbols = Calendar.current.shortWeekdaySymbols // Sunday first
+        return symbols[isoWeekday % 7]
+    }
 }
 
 struct RootView: View {
+    @EnvironmentObject var store: WorkoutStore
+
     var body: some View {
         TabView {
             TodayView()
                 .tabItem { Label("Workout", systemImage: "dumbbell.fill") }
+            ProgramView()
+                .tabItem { Label("Program", systemImage: "calendar") }
+            ProgressTab()
+                .tabItem { Label("Progress", systemImage: "chart.line.uptrend.xyaxis") }
             RecoveryView()
                 .tabItem { Label("Recovery", systemImage: "figure.strengthtraining.traditional") }
-            HistoryView()
-                .tabItem { Label("History", systemImage: "chart.line.uptrend.xyaxis") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { !store.settings.onboarded },
+            set: { _ in }
+        )) {
+            OnboardingView(mode: .firstRun)
+                .environmentObject(store)
         }
     }
 }

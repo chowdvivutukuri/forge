@@ -8,7 +8,7 @@ final class HealthManager {
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
     private var shareTypes: Set<HKSampleType> {
-        [HKObjectType.workoutType(), HKQuantityType(.activeEnergyBurned)]
+        [HKObjectType.workoutType(), HKQuantityType(.activeEnergyBurned), HKQuantityType(.bodyMass)]
     }
     private var readTypes: Set<HKObjectType> {
         [HKObjectType.workoutType(), HKQuantityType(.heartRate), HKQuantityType(.bodyMass), HKQuantityType(.activeEnergyBurned)]
@@ -48,6 +48,14 @@ final class HealthManager {
         } catch {
             return false
         }
+    }
+
+    func saveBodyMass(kg: Double, date: Date) async {
+        guard isAvailable else { return }
+        let sample = HKQuantitySample(type: HKQuantityType(.bodyMass),
+                                      quantity: HKQuantity(unit: .gramUnit(with: .kilo), doubleValue: kg),
+                                      start: date, end: date)
+        try? await store.save(sample)
     }
 
     func latestBodyMassKg() async -> Double? {
