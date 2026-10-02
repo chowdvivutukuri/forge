@@ -129,19 +129,35 @@ enum FormScene {
 
         func pt(_ i: Int) -> V3 { (F[i * 3], F[i * 3 + 1], F[i * 3 + 2]) }
         func pr(_ p: V3) -> V3 {
-            let dx = p.0 - cx
-            return (dx * sinY + p.2 * cosY + 50, p.1, dx * cosY - p.2 * sinY)
+            let dx: Double = p.0 - cx
+            let sx: Double = dx * sinY + p.2 * cosY + 50.0
+            let depth: Double = dx * cosY - p.2 * sinY
+            return (sx, p.1, depth)
         }
         func prA(_ a: [Double]) -> V3 { pr((a[0], a[1], a[2])) }
         func cg(_ v: V3) -> CGPoint { CGPoint(x: v.0, y: v.1) }
-        func add(_ a: V3, _ b: V3, _ k: Double = 1) -> V3 { (a.0 + b.0 * k, a.1 + b.1 * k, a.2 + b.2 * k) }
+        func add(_ a: V3, _ b: V3, _ k: Double = 1) -> V3 {
+            let x: Double = a.0 + b.0 * k
+            let y: Double = a.1 + b.1 * k
+            let z: Double = a.2 + b.2 * k
+            return (x, y, z)
+        }
         func mid(_ ps: [V3]) -> V3 {
+            var x = 0.0, y = 0.0, z = 0.0
+            for p in ps { x += p.0; y += p.1; z += p.2 }
             let n = Double(ps.count)
-            return (ps.map { $0.0 }.reduce(0, +) / n, ps.map { $0.1 }.reduce(0, +) / n, ps.map { $0.2 }.reduce(0, +) / n)
+            return (x / n, y / n, z / n)
         }
         func norm(_ v: V3) -> V3 {
-            let m = sqrt(v.0 * v.0 + v.1 * v.1 + v.2 * v.2)
-            return m > 0 ? (v.0 / m, v.1 / m, v.2 / m) : (0, 0, 0)
+            let sq: Double = v.0 * v.0 + v.1 * v.1 + v.2 * v.2
+            let m = sq.squareRoot()
+            if m <= 0 { return (0, 0, 0) }
+            return (v.0 / m, v.1 / m, v.2 / m)
+        }
+        func avgDepth(_ q: [V3]) -> Double {
+            var t = 0.0
+            for p in q { t += p.2 }
+            return q.isEmpty ? 0 : t / Double(q.count)
         }
 
         var props: [FormOp] = []
@@ -151,23 +167,27 @@ enum FormScene {
             switch prim.k {
             case "seg":
                 let q = prim.p.map { prA($0) }
-                props.append(FormOp(kind: .line, pts: q.map(cg), width: prim.w, role: .prop, depth: q.map { $0.2 }.reduce(0, +) / Double(q.count)))
+                props.append(FormOp(kind: .line, pts: q.map(cg), width: prim.w, role: .prop, depth: avgDepth(q)))
             case "poly":
                 let q = prim.p.map { prA($0) }
                 props.append(FormOp(kind: .poly, pts: q.map(cg), width: prim.w, role: .propFill, stroke: .prop,
-                                    depth: q.map { $0.2 }.reduce(0, +) / Double(q.count)))
+                                    depth: avgDepth(q)))
             default:
                 guard prim.p.count == 2 else { continue }
                 let lo = prim.p[0], hi = prim.p[1]
                 var q: [V3] = []
                 for x in [lo[0], hi[0]] { for y in [lo[1], hi[1]] { for z in [lo[2], hi[2]] { q.append(pr((x, y, z))) } } }
                 props.append(FormOp(kind: .poly, pts: hull(q.map(cg)), width: 0.8, role: .propFill, stroke: .prop,
-                                    depth: q.map { $0.2 }.reduce(0, +) / 8))
+                                    depth: avgDepth(q)))
             }
         }
 
         let dT = (pr(pt(neck)).2 + pr(pt(pelvis)).2) / 2
-        func alpha(_ d: Double) -> Double { 1 - 0.55 * max(0, min(1, (-2 - (d - dT)) / 10)) }
+        func alpha(_ d: Double) -> Double {
+            let behind: Double = (-2.0 - (d - dT)) / 10.0
+            let clamped: Double = Swift.max(0.0, Swift.min(1.0, behind))
+            return 1.0 - 0.55 * clamped
+        }
         func seg(_ i: Int, _ j: Int, _ w: Double) {
             let a = pr(pt(i)), b = pr(pt(j))
             let d = (a.2 + b.2) / 2
@@ -201,14 +221,14 @@ enum FormScene {
                 items.append(FormOp(kind: .line, pts: [cg(a), cg(b)], width: 1.4, role: .steel, depth: (a.2 + b.2) / 2))
                 for z in [-18.0, 18.0] {
                     let p = pr(add(C, (0, 0, z)))
-                    items.append(FormOp(kind: .circle, center: cg(p), rx: max(1.1, 7 * abs(sinY)), ry: 7, role: .plate, depth: p.2))
+                    items.append(FormOp(kind: .circle, center: cg(p), rx: Swift.max(1.1, 7.0 * Swift.abs(sinY)), ry: 7, role: .plate, depth: p.2))
                 }
             case "dumbbell":
                 for (H, _) in hands {
                     let a = pr(add(H, (0, 0, -3.5))), b = pr(add(H, (0, 0, 3.5)))
                     items.append(FormOp(kind: .line, pts: [cg(a), cg(b)], width: 1.3, role: .steel, depth: (a.2 + b.2) / 2))
                     for p in [a, b] {
-                        items.append(FormOp(kind: .circle, center: cg(p), rx: max(1.0, 3 * abs(sinY)), ry: 3, role: .plate, depth: p.2))
+                        items.append(FormOp(kind: .circle, center: cg(p), rx: Swift.max(1.0, 3.0 * Swift.abs(sinY)), ry: 3, role: .plate, depth: p.2))
                     }
                 }
             case "kettlebell":
@@ -259,7 +279,7 @@ enum FormScene {
                 let corners: [(Double, Double)] = [(-8, -9), (8, -9), (8, 9), (-8, 9)]
                 let q = corners.map { pr(add(add(m, u, $0.0), (0, 0, $0.1))) }
                 items.append(FormOp(kind: .poly, pts: q.map(cg), width: 1, role: .propFill, stroke: .steel,
-                                    depth: q.map { $0.2 }.reduce(0, +) / 4 - 3))
+                                    depth: avgDepth(q) - 3))
             default:
                 break
             }
@@ -352,28 +372,37 @@ struct FormFigureView: View {
     }
 
     static func draw(_ ops: [FormOp], in ctx: inout GraphicsContext, size: CGSize, palette: FormPalette) {
-        let side = min(size.width, size.height)
-        let pad = side * 0.04
-        let k = (side - pad * 2) / 100
-        let ox = (size.width - side) / 2 + pad
-        let oy = (size.height - side) / 2 + pad
-        func X(_ p: CGPoint) -> CGPoint { CGPoint(x: ox + p.x * k, y: oy + (100 - p.y) * k) }
+        let side: CGFloat = Swift.min(size.width, size.height)
+        let pad: CGFloat = side * 0.04
+        let k: CGFloat = (side - pad * 2) / 100
+        let ox: CGFloat = (size.width - side) / 2 + pad
+        let oy: CGFloat = (size.height - side) / 2 + pad
+        func X(_ p: CGPoint) -> CGPoint {
+            let x: CGFloat = ox + p.x * k
+            let y: CGFloat = oy + (100 - p.y) * k
+            return CGPoint(x: x, y: y)
+        }
         for op in ops {
             let color = palette.color(op.role).opacity(op.alpha)
+            let lineWidth: CGFloat = Swift.max(1, CGFloat(op.width) * k)
             switch op.kind {
             case .line:
                 guard let first = op.pts.first else { continue }
                 var path = Path()
                 path.move(to: X(first))
                 for p in op.pts.dropFirst() { path.addLine(to: X(p)) }
-                let w = max(1, op.width * k)
-                let style = op.dashed
-                    ? StrokeStyle(lineWidth: w, lineCap: .round, lineJoin: .round, dash: [2.4 * k, 1.8 * k])
-                    : StrokeStyle(lineWidth: w, lineCap: .round, lineJoin: .round)
+                let style: StrokeStyle
+                if op.dashed {
+                    style = StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round, dash: [2.4 * k, 1.8 * k])
+                } else {
+                    style = StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
+                }
                 ctx.stroke(path, with: .color(color), style: style)
             case .circle:
                 let c = X(op.center)
-                let rect = CGRect(x: c.x - op.rx * k, y: c.y - op.ry * k, width: op.rx * 2 * k, height: op.ry * 2 * k)
+                let rx: CGFloat = CGFloat(op.rx) * k
+                let ry: CGFloat = CGFloat(op.ry) * k
+                let rect = CGRect(x: c.x - rx, y: c.y - ry, width: rx * 2, height: ry * 2)
                 ctx.fill(Path(ellipseIn: rect), with: .color(color))
             case .poly:
                 guard let first = op.pts.first else { continue }
@@ -384,7 +413,7 @@ struct FormFigureView: View {
                     path.closeSubpath()
                     ctx.fill(path, with: .color(color))
                 }
-                ctx.stroke(path, with: .color(palette.color(op.stroke)), style: StrokeStyle(lineWidth: max(1, op.width * k), lineJoin: .round))
+                ctx.stroke(path, with: .color(palette.color(op.stroke)), style: StrokeStyle(lineWidth: lineWidth, lineJoin: .round))
             }
         }
     }

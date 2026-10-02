@@ -78,7 +78,7 @@ struct OnboardingView: View {
             Button {
                 if step == steps.last { finish() } else { move(1) }
             } label: {
-                Text(step == steps.last ? (mode == .firstRun ? "Start training" : "Save") : (step == .welcome ? "Get started" : "Next"))
+                Text(nextLabel)
                     .bold()
                     .frame(maxWidth: .infinity)
             }
@@ -87,6 +87,11 @@ struct OnboardingView: View {
         }
         .padding()
         .background(.bar)
+    }
+
+    private var nextLabel: String {
+        if step == steps.last { return mode == .firstRun ? "Start training" : "Save" }
+        return step == .welcome ? "Get started" : "Next"
     }
 
     private func move(_ delta: Int) {

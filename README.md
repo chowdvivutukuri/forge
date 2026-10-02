@@ -5,21 +5,23 @@ Forge plans strength workouts around how recovered each muscle is and the equipm
 ## What's in it
 
 **iPhone**
-- **Workout** – one tap generates today's session from muscle recovery + your active equipment setup. Swap any exercise for a similar one, choose your own, hide exercises you never want again. Log weight × reps per set, rest timer with a buzz when it's up.
-- **Equipment setups** – save setups like *Gym*, *Home*, *Hotel*; switch with one tap. Only exercises you can do with that gear are planned (78 exercises in the library).
-- **Plan my week** – plans 2–6 upcoming sessions with the active equipment, simulating recovery between them. Weights refresh when you start each one.
-- **Recovery** – front/back body map coloured from fatigued (red) to fresh (green), plus % per muscle.
-- **History** – volume chart, every workout, estimated 1-rep max per exercise.
-- **Progressive overload** – next weights come from your last best set; complete every set and it nudges the weight up.
-- **Apple Health** – saves each workout (strength training) with calories.
-- **iCloud Drive backup** – automatic copy of all your data in a folder you choose.
-- **Spotify** – now playing, play/pause/skip, and your playlists right on the workout screen.
+- **Setup** – first launch asks your height, weight, experience (beginner / intermediate / advanced), goal, target weight and date, days per week, session length, equipment, and optional strength targets. Change it any time: Settings → *Profile, goals & targets*.
+- **Workout** – shows the next day of your program ("Day 2 of 4 · Pull") with one tap to start. Each exercise has a looping animation; tap it for the full form guide. Log weight × reps per set, rest timer with a buzz.
+- **Program** – pick a split (Full Body, Upper/Lower, Push/Pull/Legs, Upper/Lower + PPL, or a body-part split) and days per week; Forge recommends one and lays out Day 1 → Day N with the exercises, sets and weights, plus suggested weekdays.
+- **Smart weights** – starting weights come from your level, body weight and sex. After that, each suggestion follows what you actually log: hit every rep and it goes up; fall well short and it comes down. If you consistently lift less (or more) than suggested, starting weights for new exercises are rescaled to match you.
+- **Your machines** – type the machines at your gym ("pec deck, hack squat, smith machine, cable crossover"). Forge recognises common names, lets you match anything it doesn't know, and only plans exercises you can do.
+- **Form animations** – all 88 exercises animated in 3D. Switch Side / Front / Back / Turn, or drag to rotate. Form cues for each.
+- **Progress** – body weight trend against your target, weekly consistency, strength-target progress bars, volume, and full workout history.
+- **Weigh-ins** – prompt on the Workout tab when it's been a week, optional Sunday reminder, saved to Apple Health if enabled.
+- **Recovery** – body map coloured from fatigued to fresh.
+- **Apple Health**, **iCloud Drive backup** and **Spotify** as before.
 
 **Apple Watch**
 - Today's workout appears automatically from the iPhone.
-- Log sets with the **Digital Crown** (tap weight or reps to choose which one the crown changes), rest countdown with haptics.
-- **Start Tracking** runs a real watch workout: live heart rate and calories, saved to Apple Health.
-- Swipe up for **music controls** (controls Spotify playing on your iPhone).
+- Log sets with the **Digital Crown**, rest countdown with haptics.
+- Tap the figure icon on an exercise to see its **form animation** (tap the figure to switch side / front / back).
+- **Start Tracking** runs a watch workout with live heart rate and calories, saved to Apple Health.
+- Swipe up for **music controls**.
 
 ## Installing it (no Mac needed)
 
@@ -39,8 +41,8 @@ You'll need: a free GitHub account, a Windows PC, a USB cable for your iPhone, a
 ### 3. Install on your iPhone (Windows)
 1. Install **iTunes** and **iCloud** from apple.com (the downloads from Apple's website, not the Microsoft Store versions).
 2. Install **Sideloadly** from sideloadly.io.
-3. On your iPhone: **Settings → Privacy & Security → Developer Mode → On** (it restarts).
-4. Plug in the iPhone, tap **Trust** on it. Open Sideloadly, drag in `Forge.ipa`, enter your Apple ID, press **Start**. Leave Sideloadly's advanced options alone (don't change the bundle ID).
+3. Plug in the iPhone, tap **Trust** on it. Open Sideloadly, drag in `Forge.ipa`, enter your Apple ID, press **Start**. Leave Sideloadly's advanced options alone (don't change the bundle ID).
+4. On your iPhone: **Settings → Privacy & Security →** scroll to the bottom → **Developer Mode → On** (it restarts). This switch only appears after step 3.
 5. On the iPhone: **Settings → General → VPN & Device Management →** your Apple ID → **Trust**.
 
 ### 4. Install on your Apple Watch
@@ -78,7 +80,9 @@ Free Apple ID installs expire after 7 days. Plug in, open Sideloadly, drag in th
 ```
 project.yml          Xcode project definition (XcodeGen)
 .github/workflows/   Cloud build → Forge.ipa
-Shared/              Models, 78-exercise library, recovery engine, workout generator
+Shared/              Models, 88-exercise library, strength standards, recovery engine, workout generator,
+                     machine-name recognition, form animation renderer + forms.json
+tools/forms/         Pose data that generates the animations (forms.py) and the browser preview
 iOS/                 iPhone app (SwiftUI): store, Health, Watch sync, iCloud backup, Spotify, screens
 Watch/               Apple Watch app: set logging, workout session, sync, music controls
 Support/             Info.plists and entitlements are generated here at build time

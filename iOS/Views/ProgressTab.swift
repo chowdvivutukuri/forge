@@ -64,7 +64,9 @@ struct ProgressTab: View {
                     }
                 }
                 if let target = s.targetWeightKg, let start = store.startWeightKg, abs(start - target) > 0.1 {
-                    let progress = max(0, min(1, (start - latest) / (start - target)))
+                    let progress: Double = start > target
+                        ? Self.progress(current: -latest, start: -start, target: -target)
+                        : Self.progress(current: latest, start: start, target: target)
                     VStack(alignment: .leading, spacing: 4) {
                         ProgressView(value: progress).tint(Theme.accent)
                         Text(targetLine(progress: progress, latest: latest, target: target))
@@ -153,8 +155,7 @@ struct ProgressTab: View {
             ForEach(s.strengthTargets) { t in
                 let ex = ExerciseLibrary.byID[t.exerciseID]
                 let current = store.bestSet(for: t.exerciseID).map(WorkoutGenerator.oneRepMax) ?? t.start
-                let span = t.target - t.start
-                let progress = span > 0 ? max(0, min(1, (current - t.start) / span)) : (current >= t.target ? 1 : 0)
+                let progress: Double = Self.progress(current: current, start: t.start, target: t.target)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 10) {
                         FormFigureView(exerciseID: t.exerciseID, animating: false).frame(width: 36, height: 36)
@@ -178,6 +179,13 @@ struct ProgressTab: View {
         } header: {
             Text("Strength targets")
         }
+    }
+
+    static func progress(current: Double, start: Double, target: Double) -> Double {
+        let span: Double = target - start
+        if span <= 0 { return current >= target ? 1.0 : 0.0 }
+        let raw: Double = (current - start) / span
+        return Swift.max(0.0, Swift.min(1.0, raw))
     }
 
     // MARK: Volume + history
