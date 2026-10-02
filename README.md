@@ -46,8 +46,8 @@ You'll need: a free GitHub account, a Windows PC, a USB cable for your iPhone, a
 5. On the iPhone: **Settings → General → VPN & Device Management →** your Apple ID → **Trust**.
 
 ### 4. Install on your Apple Watch
-1. On the watch: **Settings → Privacy & Security → Developer Mode → On**.
-2. On the iPhone open the **Watch** app → **My Watch** → scroll to **Available Apps** → **Install** next to Forge.
+1. On the iPhone open the **Watch** app → **My Watch** → scroll to **Available Apps** → **Install** next to Forge.
+2. If the watch asks for it: **Settings → Privacy & Security → Developer Mode → On** (like the iPhone, this switch only shows up once a sideloaded app is on the watch).
 
 > Sideloading Watch apps with a free Apple ID doesn't work on every setup. If Forge never appears under *Available Apps*, the iPhone app still works fully on its own. The reliable fix is renting a cloud Mac for an hour (e.g. MacinCloud) and installing from Xcode — I can walk you through that.
 
