@@ -11,6 +11,8 @@ struct ExerciseCard: View {
     var onChoose: () -> Void
     var onRemove: () -> Void
     var onExclude: () -> Void
+    /// Marks the exercise to be picked more or less often; nil clears it. Hidden from the menu when not set.
+    var onPrefer: ((ExercisePreference?) -> Void)? = nil
 
     private var isBodyweight: Bool { item.exercise?.isBodyweight ?? false }
 
@@ -62,6 +64,13 @@ struct ExerciseCard: View {
                     Button("How to do it", systemImage: "figure.strengthtraining.traditional", action: onShowForm)
                     Button("Swap for similar", systemImage: "arrow.triangle.2.circlepath", action: onSwap)
                     Button("Choose exercise…", systemImage: "list.bullet", action: onChoose)
+                    if let onPrefer {
+                        let current = settings.exercisePreferences[item.exerciseID]
+                        Menu("Suggest it…", systemImage: "slider.horizontal.3") {
+                            Button(current == .more ? "✓ More often" : "More often") { onPrefer(current == .more ? nil : .more) }
+                            Button(current == .less ? "✓ Less often" : "Less often") { onPrefer(current == .less ? nil : .less) }
+                        }
+                    }
                     Button("Never suggest this", systemImage: "hand.thumbsdown", action: onExclude)
                     Button("Remove", systemImage: "trash", role: .destructive, action: onRemove)
                 } label: {

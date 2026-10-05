@@ -29,6 +29,16 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    NavigationLink {
+                        PreferencesView()
+                    } label: {
+                        Label("Injuries & exercise preferences", systemImage: "bandage")
+                    }
+                } footer: {
+                    Text(preferencesSummary)
+                }
+
+                Section {
                     Toggle(isOn: $store.settings.abhiMode) {
                         Label("Abhi mode", systemImage: "paintpalette.fill")
                     }
@@ -108,19 +118,6 @@ struct SettingsView: View {
 
                 SpotifySettingsSection()
 
-                if !store.settings.excludedExerciseIDs.isEmpty {
-                    Section("Hidden exercises") {
-                        ForEach(Array(store.settings.excludedExerciseIDs).sorted(), id: \.self) { id in
-                            HStack {
-                                Text(ExerciseLibrary.byID[id]?.name ?? id)
-                                Spacer()
-                                Button("Show again") { store.settings.excludedExerciseIDs.remove(id) }
-                                    .buttonStyle(.borderless)
-                            }
-                        }
-                    }
-                }
-
                 Section {
                     Button("Erase All Data", role: .destructive) { confirmErase = true }
                 } footer: {
@@ -158,6 +155,155 @@ struct EquipmentProfileEditor: View {
         .forgeScreen()
         .navigationTitle(index.map { store.settings.profiles[$0].name } ?? "Setup")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+extension SettingsView {
+    var preferencesSummary: String {
+        let s = store.settings
+        var parts: [String] = []
+        if !s.injuries.isEmpty { parts.append("Working around: " + Injury.allCases.filter { s.injuries.contains($0) }.map(\.displayName).joined(separator: ", ")) }
+        let more = s.exercisePreferences.values.filter { $0 == .more }.count
+        let less = s.exercisePreferences.values.filter { $0 == .less }.count
+        if more > 0 { parts.append("\(more) more often") }
+        if less > 0 { parts.append("\(less) less often") }
+        if !s.excludedExerciseIDs.isEmpty { parts.append("\(s.excludedExerciseIDs.count) never") }
+        return parts.isEmpty ? "Tell Forge about sore joints and which exercises you like or don't." : parts.joined(separator: " · ")
+    }
+}
+
+/// Injuries to work around, plus exercises to pick more often, less often, or never.
+struct PreferencesView: View {
+    @EnvironmentObject var store: WorkoutStore
+    @State private var picking = false
+
+    private var injuryBlocked: [Exercise] {
+        let ids = store.settings.injuries.reduce(Set<String>()) { $0.union($1.avoid) }
+        return ExerciseLibrary.all.filter { ids.contains($0.id) }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                ForEach(Injury.allCases) { injury in
+                    Toggle(injury.displayName, isOn: Binding(
+                        get: { store.settings.injuries.contains(injury) },
+                        set: { on in
+                            if on { store.settings.injuries.insert(injury) } else { store.settings.injuries.remove(injury) }
+                        }
+                    ))
+                }
+            } header: {
+                Text("Injuries & sore spots")
+            } footer: {
+                if injuryBlocked.isEmpty {
+                    Text("Forge skips exercises that load a marked area hard and picks gentler ones less often. This is a general guide, not medical advice; follow your physio or doctor.")
+                } else {
+                    Text("Skipping \(injuryBlocked.count) exercises: \(injuryBlocked.map(\.name).joined(separator: ", ")).")
+                }
+            }
+
+            ForEach(ExercisePreference.allCases, id: \.self) { pref in
+                let ids = store.settings.exercisePreferences.filter { $0.value == pref }.map(\.key).sorted {
+                    (ExerciseLibrary.byID[$0]?.name ?? $0) < (ExerciseLibrary.byID[$1]?.name ?? $1)
+                }
+                Section(pref.displayName) {
+                    if ids.isEmpty {
+                        Text("None yet. Use an exercise's ⋯ menu in a workout, or add one below.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    ForEach(ids, id: \.self) { id in
+                        HStack {
+                            Text(ExerciseLibrary.byID[id]?.name ?? id)
+                            Spacer()
+                            Button("Clear") { store.settings.exercisePreferences[id] = nil }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                }
+            }
+
+            Section("Never") {
+                if store.settings.excludedExerciseIDs.isEmpty {
+                    Text("None hidden.").font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach(Array(store.settings.excludedExerciseIDs).sorted(), id: \.self) { id in
+                    HStack {
+                        Text(ExerciseLibrary.byID[id]?.name ?? id)
+                        Spacer()
+                        Button("Show again") { store.settings.excludedExerciseIDs.remove(id) }
+                            .buttonStyle(.borderless)
+                    }
+                }
+            }
+
+            Section {
+                Button { picking = true } label: { Label("Set an exercise preference", systemImage: "plus") }
+            }
+        }
+        .forgeScreen()
+        .navigationTitle("Preferences")
+        .sheet(isPresented: $picking) {
+            PreferencePicker()
+        }
+    }
+}
+
+/// Pick any exercise and choose more often, less often or never.
+struct PreferencePicker: View {
+    @EnvironmentObject var store: WorkoutStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var search = ""
+
+    private var exercises: [Exercise] {
+        let all = ExerciseLibrary.all
+        guard !search.isEmpty else { return all }
+        return all.filter { $0.name.localizedCaseInsensitiveContains(search) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(exercises) { ex in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(ex.name)
+                        if let injury = store.settings.blockingInjury(ex.id) {
+                            Text("Skipped for your \(injury.displayName.lowercased())")
+                                .font(.caption).foregroundStyle(.orange)
+                        }
+                    }
+                    Spacer()
+                    Menu {
+                        Button("More often") { set(ex.id, .more) }
+                        Button("Less often") { set(ex.id, .less) }
+                        Button("Never") {
+                            store.settings.exercisePreferences[ex.id] = nil
+                            store.settings.excludedExerciseIDs.insert(ex.id)
+                        }
+                        Button("No preference") {
+                            store.settings.exercisePreferences[ex.id] = nil
+                            store.settings.excludedExerciseIDs.remove(ex.id)
+                        }
+                    } label: {
+                        Text(label(ex.id)).font(.subheadline)
+                    }
+                }
+            }
+            .searchable(text: $search, prompt: "Search exercises")
+            .navigationTitle("Preferences")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+    }
+
+    private func set(_ id: String, _ pref: ExercisePreference) {
+        store.settings.excludedExerciseIDs.remove(id)
+        store.settings.exercisePreferences[id] = pref
+    }
+
+    private func label(_ id: String) -> String {
+        if store.settings.excludedExerciseIDs.contains(id) { return "Never" }
+        return store.settings.exercisePreferences[id]?.displayName ?? "Normal"
     }
 }
 

@@ -535,6 +535,8 @@ struct UserSettings: Codable, Equatable, Sendable {
     var useKilograms: Bool = false
     var healthEnabled: Bool = false
     var excludedExerciseIDs: Set<String> = []
+    var exercisePreferences: [String: ExercisePreference] = [:]
+    var injuries: Set<Injury> = []
     var profiles: [EquipmentProfile] = [.gym, .home]
     var activeProfileID: UUID?
     var customMachineMap: [String: String] = [:]
@@ -571,6 +573,8 @@ struct UserSettings: Codable, Equatable, Sendable {
         useKilograms = c.value(.useKilograms, d.useKilograms)
         healthEnabled = c.value(.healthEnabled, d.healthEnabled)
         excludedExerciseIDs = c.value(.excludedExerciseIDs, d.excludedExerciseIDs)
+        exercisePreferences = c.value(.exercisePreferences, d.exercisePreferences)
+        injuries = c.value(.injuries, d.injuries)
         profiles = c.value(.profiles, d.profiles)
         activeProfileID = c.value(.activeProfileID, nil)
         customMachineMap = c.value(.customMachineMap, d.customMachineMap)

@@ -217,7 +217,8 @@ struct TodayView: View {
                         onExclude: {
                             store.excludeExercise(item.exerciseID)
                             store.swap(itemID: item.id)
-                        }
+                        },
+                        onPrefer: { store.settings.exercisePreferences[item.exerciseID] = $0 }
                     )
                 }
             }
