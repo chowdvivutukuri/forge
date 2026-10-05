@@ -23,6 +23,9 @@ targets:
     sources:
       - path: iOS
       - path: Shared
+      # realistic 3D body viewer (three.js + CC0 MakeHuman body), kept as a folder so it ships as FormBody/ in the app
+      - path: FormBody
+        type: folder
     info:
       path: Support/iOS-Info.plist
       properties:

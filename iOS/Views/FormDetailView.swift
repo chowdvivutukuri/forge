@@ -10,6 +10,7 @@ struct FormDetailView: View {
     @State private var angle: FormAngle = .side
     @State private var yaw: Double = 90
     @State private var dragStart: Double?
+    @State private var showBody = false
 
     private var exercise: Exercise? { ExerciseLibrary.byID[exerciseID] }
 
@@ -43,6 +44,15 @@ struct FormDetailView: View {
                     .pickerStyle(.segmented)
                     .onChange(of: angle) { _, a in
                         withAnimation(.easeInOut(duration: 0.5)) { yaw = a.yaw }
+                    }
+
+                    if BodyForm.has(exerciseID) {
+                        Button { showBody = true } label: {
+                            Label("See it on a 3D body (beta)", systemImage: "figure.strengthtraining.traditional")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(Theme.accent)
                     }
 
                     if let ex = exercise {
@@ -92,6 +102,7 @@ struct FormDetailView: View {
             .navigationTitle(exercise?.name ?? "Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .fullScreenCover(isPresented: $showBody) { BodyFormView(exerciseID: exerciseID).environmentObject(store) }
             .onAppear {
                 yaw = FormLibrary.defaultYaw(for: exerciseID)
                 angle = yaw == 0 ? .front : .side
