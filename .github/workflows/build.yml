@@ -49,6 +49,7 @@ jobs:
         run: |
           APP=build/Build/Products/Release-iphoneos/Forge.app
           codesign -f -s - --entitlements Support/Watch.entitlements "$APP/Watch/ForgeWatch.app"
+          for ext in "$APP"/PlugIns/*.appex; do [ -e "$ext" ] && codesign -f -s - "$ext"; done
           codesign -f -s - --entitlements Support/iOS.entitlements "$APP"
           codesign -d --entitlements - "$APP" || true
 
@@ -56,21 +57,28 @@ jobs:
         run: |
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/Forge.app Payload/
+          ls Payload/Forge.app/PlugIns || (echo "::error::Live Activity extension was not embedded" && exit 1)
           zip -qry Forge.ipa Payload
+          # Same app without the lock-screen Live Activity extension, in case Sideloadly can't sign the extra extension.
+          rm -rf Payload/Forge.app/PlugIns
+          codesign -f -s - --entitlements Support/iOS.entitlements Payload/Forge.app
+          zip -qry Forge-without-LiveActivity.ipa Payload
 
       - uses: actions/upload-artifact@v4
         with:
           name: Forge-ipa
-          path: Forge.ipa
+          path: |
+            Forge.ipa
+            Forge-without-LiveActivity.ipa
           retention-days: 30
 
       - name: Publish to Releases (easy download link)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "build-${{ github.run_number }}" Forge.ipa \
+          gh release create "build-${{ github.run_number }}" Forge.ipa Forge-without-LiveActivity.ipa \
             --title "Forge build ${{ github.run_number }}" \
-            --notes "Download Forge.ipa below and install it with Sideloadly (see README)." \
+            --notes "Download Forge.ipa below and install it with Sideloadly (see README). If Sideloadly can't sign it (App ID limit), use Forge-without-LiveActivity.ipa." \
             --latest
 
       - name: Report compile errors
