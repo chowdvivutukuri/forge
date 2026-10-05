@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 
 /// Realistic 3D body form guide (beta). Runs the bundled three.js viewer in FormBody/ offline:
-/// a CC0 MakeHuman body, male or female from the profile, with live joint angles and muscle highlights.
+/// a CC0 MakeHuman body with live joint angles and muscle highlights.
 enum BodyForm {
     /// Exercises that have a realistic-body page in FormBody/.
     static let pages: [String: String] = ["db_curl": "curl"]
@@ -17,8 +17,7 @@ struct BodyFormView: View {
 
     var body: some View {
         NavigationStack {
-            BodyFormWebView(page: BodyForm.pages[exerciseID] ?? "curl",
-                            sex: store.settings.sex == .female ? "female" : "male")
+            BodyFormWebView(page: BodyForm.pages[exerciseID] ?? "curl")
                 .ignoresSafeArea(edges: .bottom)
                 .navigationTitle(ExerciseLibrary.byID[exerciseID]?.name ?? "3D body")
                 .navigationBarTitleDisplayMode(.inline)
@@ -29,17 +28,14 @@ struct BodyFormView: View {
 
 struct BodyFormWebView: UIViewRepresentable {
     let page: String
-    let sex: String
 
     func makeUIView(context: Context) -> WKWebView {
         let web = WKWebView(frame: .zero, configuration: WKWebViewConfiguration())
         web.isOpaque = false
         web.backgroundColor = .clear
         web.scrollView.backgroundColor = .clear
-        if let file = Bundle.main.url(forResource: page, withExtension: "html", subdirectory: "FormBody"),
-           var parts = URLComponents(url: file, resolvingAgainstBaseURL: false) {
-            parts.queryItems = [URLQueryItem(name: "sex", value: sex)]
-            web.loadFileURL(parts.url ?? file, allowingReadAccessTo: file.deletingLastPathComponent())
+        if let file = Bundle.main.url(forResource: page, withExtension: "html", subdirectory: "FormBody") {
+            web.loadFileURL(file, allowingReadAccessTo: file.deletingLastPathComponent())
         }
         return web
     }
