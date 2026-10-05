@@ -9,6 +9,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
 
     private let workoutKey = "forge.watch.workout"
     private let kgKey = "forge.watch.kg"
+    private let customKey = "forge.watch.custom"
 
     override init() {
         super.init()
@@ -16,6 +17,9 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
             workout = SyncCoding.decode(Workout.self, from: d)
         }
         useKilograms = UserDefaults.standard.bool(forKey: kgKey)
+        if let d = UserDefaults.standard.data(forKey: customKey), let list = SyncCoding.decode([Exercise].self, from: d) {
+            ExerciseLibrary.custom = list
+        }
         if WCSession.isSupported() {
             WCSession.default.delegate = self
             WCSession.default.activate()
@@ -116,6 +120,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
         var workoutData: Data?
         var useKg: Bool?
         var abhi: Bool?
+        var custom: Data?
     }
 
     nonisolated private static func extract(_ payload: [String: Any]) -> Received {
@@ -126,6 +131,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
         }
         r.useKg = payload[SyncKey.useKg] as? Bool
         r.abhi = payload[SyncKey.abhi] as? Bool
+        r.custom = payload[SyncKey.custom] as? Data
         return r
     }
 
@@ -133,6 +139,11 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
         if let purple = r.abhi, purple != abhiMode {
             ForgeColors.setAbhiMode(purple)
             abhiMode = purple
+        }
+        if let d = r.custom, let list = SyncCoding.decode([Exercise].self, from: d) {
+            ExerciseLibrary.custom = list
+            UserDefaults.standard.set(d, forKey: customKey)
+            objectWillChange.send()
         }
         if let kg = r.useKg {
             useKilograms = kg

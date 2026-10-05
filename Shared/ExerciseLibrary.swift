@@ -6,7 +6,7 @@ enum ExerciseLibrary {
         Exercise(id: id, name: name, primary: primary, secondary: secondary, equipment: equipment, isCompound: compound)
     }
 
-    static let all: [Exercise] = [
+    static let builtIn: [Exercise] = [
         // Chest
         ex("bb_bench", "Barbell Bench Press", [.chest], [.frontDelts, .triceps], [.barbell, .bench], compound: true),
         ex("bb_incline", "Incline Barbell Press", [.chest, .frontDelts], [.triceps], [.barbell, .bench], compound: true),
@@ -115,7 +115,16 @@ enum ExerciseLibrary {
         ex("ell_intervals", "Elliptical Intervals", [.quads, .glutes], [.hamstrings, .calves], [.elliptical], compound: false),
     ]
 
-    static let byID: [String: Exercise] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+    /// Exercises the user made. The iPhone and Watch stores set this from saved settings.
+    static var custom: [Exercise] = [] {
+        didSet {
+            all = builtIn + custom
+            byID = Dictionary(all.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        }
+    }
+
+    static private(set) var all: [Exercise] = builtIn
+    static private(set) var byID: [String: Exercise] = Dictionary(uniqueKeysWithValues: builtIn.map { ($0.id, $0) })
 
     /// Exercises doable with the given equipment.
     static func available(with equipment: Set<Equipment>, excluding excluded: Set<String> = []) -> [Exercise] {

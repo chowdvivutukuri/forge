@@ -7,6 +7,7 @@ final class WorkoutStore: ObservableObject {
     @Published var settings: UserSettings {
         didSet {
             if oldValue.abhiMode != settings.abhiMode { applyLook(settings.abhiMode) }
+            if oldValue.customExercises != settings.customExercises { ExerciseLibrary.custom = settings.customExercises }
             stateChanged(pushToWatch: true)
         }
     }
@@ -44,6 +45,7 @@ final class WorkoutStore: ObservableObject {
             current = nil
             weighIns = []
         }
+        ExerciseLibrary.custom = settings.customExercises
         ForgeColors.setAbhiMode(settings.abhiMode)
         AbhiAppearance.apply(settings.abhiMode)
         connectivity.onWorkoutUpdate = { [weak self] w in self?.receiveFromWatch(w, finished: false) }

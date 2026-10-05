@@ -63,6 +63,13 @@ struct FormDetailView: View {
                         }
                     }
 
+                    if let notes = exercise?.notes {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Your notes").font(.headline)
+                            Text(notes)
+                        }
+                    }
+
                     let cues = FormLibrary.cues(for: exerciseID)
                     if !cues.isEmpty {
                         VStack(alignment: .leading, spacing: 10) {

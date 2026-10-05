@@ -24,6 +24,7 @@ final class PhoneConnectivity: NSObject, WCSessionDelegate {
             SyncKey.useKg: settings.useKilograms,
             SyncKey.abhi: settings.abhiMode,
             SyncKey.sentAt: Date().timeIntervalSince1970,
+            SyncKey.custom: SyncCoding.encode(settings.customExercises) ?? Data(),
         ]
         try? s.updateApplicationContext(context)
     }
