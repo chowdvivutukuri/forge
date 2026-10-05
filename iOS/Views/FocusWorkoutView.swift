@@ -143,7 +143,16 @@ struct FocusWorkoutView: View {
     private func setCard(_ s: Int) -> some View {
         let item = exercises[safeIndex]
         let set = item.sets[s]
+        let kg = store.settings.useKilograms
+        let unit = store.settings.weightUnit
         return VStack(spacing: 18) {
+            if s == 0, let ex = item.exercise {
+                let ramp = Warmup.sets(working: set.weight, for: ex, kg: kg)
+                if !ramp.isEmpty {
+                    WarmupPanel(ramp: ramp, exercise: ex, unit: unit, kg: kg)
+                        .id("\(item.id)-warmup")
+                }
+            }
             Text("SET \(s + 1) OF \(item.sets.count)")
                 .font(.headline)
                 .foregroundStyle(Theme.accent)
@@ -167,6 +176,12 @@ struct FocusWorkoutView: View {
                     field: AnyView(TextField("0", value: Binding(get: { set.reps }, set: { workout.exercises[safeIndex].sets[s].reps = $0 }), format: .number)
                         .keyboardType(.numberPad))
                 )
+            }
+
+            if let ex = item.exercise, let plates = Plates.summary(total: set.weight, for: ex, kg: kg) {
+                Label(plates, systemImage: "circle.circle")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
             Button {

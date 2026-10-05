@@ -152,7 +152,15 @@ struct ExerciseCard: View {
 
     // MARK: Strength
 
+    private var workingWeight: Double { item.sets.first(where: { !$0.done })?.weight ?? item.sets.first?.weight ?? 0 }
+
     @ViewBuilder private var strengthBody: some View {
+            if let ex = item.exercise, !item.sets.contains(where: \.done) {
+                let ramp = Warmup.sets(working: item.sets.first?.weight ?? 0, for: ex, kg: settings.useKilograms)
+                if !ramp.isEmpty {
+                    WarmupPanel(ramp: ramp, exercise: ex, unit: unit, kg: settings.useKilograms)
+                }
+            }
             HStack {
                 Text("SET").frame(width: 34, alignment: .leading)
                 Text(isBodyweight ? "+\(unit)" : unit.uppercased()).frame(maxWidth: .infinity)
@@ -209,6 +217,11 @@ struct ExerciseCard: View {
             }
             .font(.subheadline)
 
+            if let ex = item.exercise, let plates = Plates.summary(total: workingWeight, for: ex, kg: settings.useKilograms) {
+                Label("\(Theme.formatWeight(workingWeight)) \(unit): \(plates)", systemImage: "circle.circle")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             if let suggested = item.suggestedWeight, suggested > 0, !isBodyweight {
                 let used = item.sets.first?.weight ?? suggested
                 if abs(used - suggested) >= 0.5 {
@@ -219,6 +232,45 @@ struct ExerciseCard: View {
                         .font(.caption2).foregroundStyle(.secondary)
                 }
             }
+    }
+}
+
+/// Warm-up ramp before the first working set. Ticks are only a checklist: warm-ups aren't logged,
+/// so they never count toward volume, progression or recovery.
+struct WarmupPanel: View {
+    let ramp: [WarmupSet]
+    let exercise: Exercise
+    let unit: String
+    let kg: Bool
+    @State private var done: Set<Int> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Warm-up", systemImage: "flame")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ForEach(Array(ramp.enumerated()), id: \.offset) { i, w in
+                Button {
+                    if done.contains(i) { done.remove(i) } else { done.insert(i) }
+                } label: {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Image(systemName: done.contains(i) ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(done.contains(i) ? ForgeColors.positive : Color.secondary)
+                        Text("\(Theme.formatWeight(w.weight)) \(unit) × \(w.reps)")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        if let plates = Plates.summary(total: w.weight, for: exercise, kg: kg) {
+                            Text(plates).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .buttonStyle(.borderless)
+                .opacity(done.contains(i) ? 0.6 : 1)
+            }
+        }
+        .padding(10)
+        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
