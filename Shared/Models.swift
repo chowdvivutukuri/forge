@@ -483,6 +483,9 @@ struct Workout: Codable, Identifiable, Hashable, Sendable {
     var equipmentProfileName: String?
     var calories: Double?
     var averageHeartRate: Double?
+    var maxHeartRate: Double?
+    /// Where the calorie number came from: "watch" (Apple Watch sensors), "heartRate" (from heart rate) or "estimate".
+    var calorieSource: String?
     var savedToHealth: Bool = false
     /// Program day (0-based) this workout was for.
     var programDay: Int?
@@ -505,6 +508,8 @@ struct Workout: Codable, Identifiable, Hashable, Sendable {
         equipmentProfileName = c.value(.equipmentProfileName, nil)
         calories = c.value(.calories, nil)
         averageHeartRate = c.value(.averageHeartRate, nil)
+        maxHeartRate = c.value(.maxHeartRate, nil)
+        calorieSource = c.value(.calorieSource, nil)
         savedToHealth = c.value(.savedToHealth, false)
         programDay = c.value(.programDay, nil)
     }

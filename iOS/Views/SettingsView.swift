@@ -6,6 +6,7 @@ struct SettingsView: View {
     @EnvironmentObject var spotify: SpotifyManager
     @State private var confirmErase = false
     @State private var editProfile = false
+    @State private var healthError: String?
 
     var body: some View {
         NavigationStack {
@@ -76,19 +77,31 @@ struct SettingsView: View {
                         get: { store.settings.healthEnabled },
                         set: { on in
                             if on {
-                                Task {
-                                    let ok = await store.health.requestAuthorization()
-                                    store.settings.healthEnabled = ok
-                                }
+                                Task { healthError = await store.connectHealth() }
                             } else {
                                 store.settings.healthEnabled = false
                             }
                         }
                     ))
+                    Button {
+                        Task { healthError = await store.connectHealth() }
+                    } label: {
+                        Label(store.settings.healthEnabled ? "Reconnect Apple Health" : "Connect Apple Health", systemImage: "heart.text.square")
+                    }
+                    if let healthError {
+                        Text("Couldn't connect: \(healthError)")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    } else if store.settings.healthEnabled {
+                        Label(store.health.canSaveWorkouts ? "Connected" : "Connected, but saving workouts is off in the Health app",
+                              systemImage: store.health.canSaveWorkouts ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .font(.footnote)
+                            .foregroundStyle(store.health.canSaveWorkouts ? .green : .orange)
+                    }
                 } header: {
                     Text("Apple Health")
                 } footer: {
-                    Text("Workouts tracked on Apple Watch are saved with heart rate and calories automatically.")
+                    Text("Calories come from your Apple Watch sensors when it recorded them, otherwise from your heart rate, otherwise an estimate. To change what Forge can read or save: Health app → your profile picture → Apps → Forge.")
                 }
 
                 ICloudBackupSection(backup: store.backup)

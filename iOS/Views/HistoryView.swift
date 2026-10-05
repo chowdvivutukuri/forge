@@ -66,8 +66,12 @@ struct WorkoutDetailView: View {
                 stat("Sets completed", "\(workout.completedSetCount)")
                 stat("Volume", "\(Theme.formatWeight(workout.volume)) \(store.settings.weightUnit)")
                 if let profile = workout.equipmentProfileName { stat("Equipment", profile) }
-                if let kcal = workout.calories { stat("Calories", "\(Int(kcal)) kcal") }
+                if let kcal = workout.calories {
+                    let how = ["watch": "Apple Watch sensors", "heartRate": "from heart rate", "estimate": "estimated"][workout.calorieSource ?? ""]
+                    stat("Calories", "\(Int(kcal)) kcal" + (how.map { " · \($0)" } ?? ""))
+                }
                 if let hr = workout.averageHeartRate { stat("Avg heart rate", "\(Int(hr)) bpm") }
+                if let hr = workout.maxHeartRate { stat("Peak heart rate", "\(Int(hr)) bpm") }
                 if workout.savedToHealth { Label("Saved to Apple Health", systemImage: "heart.fill").foregroundStyle(.pink) }
             }
             ForEach(workout.exercises) { item in
