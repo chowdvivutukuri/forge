@@ -104,9 +104,6 @@ body{padding-block:8px 24px}
           <span class="seg" role="group" aria-label="Camera view">
             <button type="button" id="v-side" data-view="side" aria-pressed="true">Side</button><button type="button" id="v-front" data-view="front" aria-pressed="false">Front</button><button type="button" id="v-back" data-view="back" aria-pressed="false">Back</button><button type="button" id="v-spin" data-view="spin" aria-pressed="false">360°</button>
           </span>
-          <span class="seg" role="group" aria-label="Body type (from profile sex)">
-            <button type="button" id="bt-male" data-bt="male" aria-pressed="true">Male</button><button type="button" id="bt-female" data-bt="female" aria-pressed="false">Female</button>
-          </span>
         </div>
       </div>
     </div>
@@ -199,11 +196,9 @@ function setArc(arc,B,A,C,col,k){
   const mid=st+len/2;return new THREE.Vector3(B.x-.07,B.y+Math.sin(mid)*k,B.z+Math.cos(mid)*k);}
 
 // ---------- body ----------
-let body=null,B={},rest=new Map(),meshes=[],BODY=new URLSearchParams(location.search).get('sex')==='female'?'female':'male',paint=null;
-document.querySelectorAll('[data-bt]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.bt===BODY));
+let body=null,B={},rest=new Map(),meshes=[],BODY='male',paint=null;
 const SHAPE={
-  male:{gender_male:1,muscle_max:.55,corr_gender_male__muscle_max:.55,proportions_ideal:.6,weight_min:.15,corr_gender_male__weight_min:.15,corr_weight_min__muscle_max:.08},
-  female:{gender_female:1,muscle_max:.3,corr_gender_female__muscle_max:.3,breast_cup_max:.35,corr_breast_cup_max__muscle_max:.1,proportions_ideal:.6,weight_min:.1,corr_gender_female__weight_min:.1}};
+  male:{gender_male:1,muscle_max:.55,corr_gender_male__muscle_max:.55,proportions_ideal:.6,weight_min:.15,corr_gender_male__weight_min:.15,corr_weight_min__muscle_max:.08}};
 // The model's body sliders are stored as compressed morph targets. Bake the chosen mix into the
 // mesh on the CPU once per body type instead of leaving 92 live morphs on the GPU.
 // Read the body-slider targets straight from the file (they are compressed, partly sparse).
@@ -501,7 +496,6 @@ function frame(now){
 ui.play.addEventListener('click',()=>{playing=!playing;ui.play.textContent=playing?'Pause':'Play';last=performance.now();});
 ui.scrub.addEventListener('input',()=>{playing=false;ui.play.textContent='Play';t=ui.scrub.value/1000;});
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
-document.querySelectorAll('[data-bt]').forEach(b=>b.addEventListener('click',()=>{BODY=b.dataset.bt;document.querySelectorAll('[data-bt]').forEach(x=>x.setAttribute('aria-pressed',x===b));if(body)applyShape();}));
 ui.play.textContent=playing?'Pause':'Play';
 requestAnimationFrame(frame);
 })();
