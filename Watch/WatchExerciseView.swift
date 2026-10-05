@@ -51,6 +51,27 @@ struct WatchExerciseView: View {
                                  weight.formatted(.number.precision(.fractionLength(0...1))), .weight)
                         valueBox("reps", "\(Int(reps))", .reps)
                     }
+                    if let ex = item.exercise {
+                        if number == 1, !item.sets.contains(where: \.done) {
+                            let ramp = Warmup.sets(working: weight, for: ex, kg: store.useKilograms)
+                            if !ramp.isEmpty {
+                                Text("Warm up: " + ramp.map { "\($0.weight.formatted(.number.precision(.fractionLength(0...1))))×\($0.reps)" }
+                                    .joined(separator: ", "))
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.7)
+                            }
+                        }
+                        if let plates = Plates.summary(total: weight, for: ex, kg: store.useKilograms) {
+                            Text(plates)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                        }
+                    }
                     if manager.countedReps > 0, manager.countedReps != Int(reps) {
                         // The Watch's motion sensors counted this set; tap to use their count.
                         Button {
