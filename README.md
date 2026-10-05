@@ -17,13 +17,14 @@ Forge plans strength workouts around how recovered each muscle is and the equipm
 - **Cardio** – treadmill (incline walk, run, intervals) and elliptical (steady, intervals). Add cardio to your program as a warm-up or finisher, or start a cardio-only session. Log minutes, speed or resistance, and incline; the next suggestion builds on what you did. Calories and distance are estimated and saved to Apple Health as walking, running or elliptical workouts.
 - **Abhi mode** – Settings → Look. Turns the whole app purple: light purple backgrounds, deep purple text and figures instead of black, purple buttons, charts and recovery map, a purple Watch background, and a purple home-screen icon (iOS asks you to confirm the icon change).
 - **Recovery** – body map coloured from fatigued to fresh.
-- **Apple Health**, **iCloud Drive backup** and **Spotify** as before.
+- **Apple Health** – Forge asks to connect on first launch; Settings → Apple Health shows whether it's connected and the exact reason if it isn't, with a Reconnect button. Calories for a workout logged on the iPhone come from your Apple Watch's own sensor readings in Health when it recorded them, otherwise from your heart rate (age and sex from Health), otherwise an estimate; History shows which, plus average and peak heart rate.
+- **iCloud Drive backup** and **Spotify** as before.
 
 **Apple Watch**
 - Today's workout appears automatically from the iPhone.
 - Log sets with the **Digital Crown**, rest countdown with haptics.
 - Tap the figure icon on an exercise to see its **form animation** (tap the figure to switch side / front / back).
-- **Start Tracking** runs a watch workout with live heart rate and calories, saved to Apple Health.
+- **Sensors** – tracking starts by itself when you open an exercise: live, average and peak heart rate, active and resting calories from the Watch's calorie model, and the motion sensors count your reps (tap *Watch counted N* to use the count). Saved to Apple Health. **Start Tracking** is still there if you want to start before your first exercise.
 - Swipe up for **music controls**.
 
 ## Installing it (no Mac needed)

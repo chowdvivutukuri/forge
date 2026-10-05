@@ -4,6 +4,7 @@ import WatchKit
 /// Log one exercise: Digital Crown adjusts weight or reps, tap to switch, then Log Set.
 struct WatchExerciseView: View {
     @EnvironmentObject var store: WatchStore
+    @EnvironmentObject var manager: WatchWorkoutManager
     let itemID: UUID
 
     enum Field { case weight, reps }
@@ -50,9 +51,21 @@ struct WatchExerciseView: View {
                                  weight.formatted(.number.precision(.fractionLength(0...1))), .weight)
                         valueBox("reps", "\(Int(reps))", .reps)
                     }
+                    if manager.countedReps > 0, manager.countedReps != Int(reps) {
+                        // The Watch's motion sensors counted this set; tap to use their count.
+                        Button {
+                            reps = Double(manager.countedReps)
+                        } label: {
+                            Label("Watch counted \(manager.countedReps)", systemImage: "applewatch.radiowaves.left.and.right")
+                                .font(.caption2)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(ForgeColors.accent)
+                    }
                     Button {
                         store.logSet(itemID: itemID, setID: next.id, reps: Int(reps), weight: weight)
                         WKInterfaceDevice.current().play(.success)
+                        manager.resetReps()
                         if item.sets.filter({ !$0.done }).count > 1 {
                             restEnd = Date().addingTimeInterval(TimeInterval(item.restSeconds))
                         }
@@ -79,7 +92,12 @@ struct WatchExerciseView: View {
                                   isContinuous: false,
                                   isHapticFeedbackEnabled: true)
             .watchAbhi()
-            .onAppear { load() }
+            .onAppear {
+                load()
+                // Sensors run for the whole workout: heart rate, calories and rep counting start with the first exercise.
+                if !manager.isRunning { Task { await manager.start() } }
+                manager.resetReps()
+            }
             .onChange(of: nextSet?.id) { _, _ in load() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -134,6 +152,7 @@ struct WatchExerciseView: View {
             if !Task.isCancelled {
                 WKInterfaceDevice.current().play(.notification)
                 restEnd = nil
+                manager.resetReps()
             }
         }
     }

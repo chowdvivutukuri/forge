@@ -53,6 +53,11 @@ final class WorkoutStore: ObservableObject {
             self.connectivity.push(current: self.current, settings: self.settings)
         }
         connectivity.activate()
+        // Ask for Apple Health once, so heart rate and Watch calories flow in without a trip to Settings.
+        if !settings.healthEnabled, !UserDefaults.standard.bool(forKey: "forge.healthAsked") {
+            UserDefaults.standard.set(true, forKey: "forge.healthAsked")
+            Task { _ = await connectHealth() }
+        }
     }
 
     // MARK: Persistence
@@ -237,21 +242,33 @@ final class WorkoutStore: ObservableObject {
             var known = latestWeightKg
             if known == nil { known = await health.latestBodyMassKg() }
             let kg = known ?? 75
-            let total = await saveToHealth(w, start: start, end: end, bodyKg: kg)
-            if let total, let i = history.firstIndex(where: { $0.id == w.id }) {
-                history[i].savedToHealth = true
-                history[i].calories = total
+            let result = await saveToHealth(w, start: start, end: end, bodyKg: kg)
+            if let i = history.firstIndex(where: { $0.id == w.id }) {
+                history[i].savedToHealth = result.saved
+                history[i].calories = result.kcal
+                history[i].calorieSource = result.source
+                history[i].averageHeartRate = result.heartRate?.average
+                history[i].maxHeartRate = result.heartRate?.max
             }
         }
     }
 
+    private struct HealthSaveResult {
+        var saved = false
+        var kcal: Double?
+        var source: String?
+        var heartRate: (average: Double, max: Double)?
+    }
+
     /// Saves cardio blocks as walking/running/elliptical workouts and the rest as strength training,
-    /// without overlapping so calories aren't counted twice. Returns total kcal, or nil if nothing saved.
-    private func saveToHealth(_ w: Workout, start: Date, end: Date, bodyKg: Double) async -> Double? {
+    /// without overlapping so calories aren't counted twice. Strength calories come from the Watch's own
+    /// sensors when it recorded them, else from heart rate, else a time-based estimate.
+    private func saveToHealth(_ w: Workout, start: Date, end: Date, bodyKg: Double) async -> HealthSaveResult {
+        var result = HealthSaveResult()
+        result.heartRate = await health.heartRate(start: start, end: end)
         var strengthStart = start
         var strengthEnd = end
         var total = 0.0
-        var savedAny = false
         let cardio = w.exercises.enumerated().filter { $0.element.isCardio && $0.element.cardioMinutes > 0 }
         let strengthCount = w.exercises.filter { !$0.isCardio && $0.completedSets > 0 }.count
         for (index, item) in cardio {
@@ -278,16 +295,45 @@ final class WorkoutStore: ObservableObject {
             }
             if await health.saveCardioWorkout(exerciseID: item.exerciseID, start: blockStart, end: blockEnd, kcal: kcal, distanceMeters: meters) {
                 total += kcal
-                savedAny = true
+                result.saved = true
+                result.source = "estimate"
             }
         }
         if strengthCount > 0, strengthEnd > strengthStart {
-            if await health.saveStrengthWorkout(start: strengthStart, end: strengthEnd, bodyMassKg: bodyKg) {
-                total += HealthManager.estimatedCalories(start: strengthStart, end: strengthEnd, bodyMassKg: bodyKg)
-                savedAny = true
+            let minutes = strengthEnd.timeIntervalSince(strengthStart) / 60
+            let kcal: Double
+            var record: Double?
+            let source: String
+            if let measured = await health.measuredActiveEnergy(start: strengthStart, end: strengthEnd), measured >= minutes * 0.5 {
+                // The Watch already logged this energy to Apple Health; use it and don't add a duplicate.
+                kcal = measured
+                source = "watch"
+            } else if let hr = await health.heartRate(start: strengthStart, end: strengthEnd), hr.average > 60 {
+                let age = health.ageYears ?? 30
+                let female = (health.healthSex ?? settings.sex) == .female
+                kcal = HealthManager.heartRateCalories(averageBPM: hr.average, minutes: minutes, kg: bodyKg, age: age, female: female)
+                record = kcal
+                source = "heartRate"
+            } else {
+                kcal = HealthManager.estimatedCalories(start: strengthStart, end: strengthEnd, bodyMassKg: bodyKg)
+                record = kcal
+                source = "estimate"
+            }
+            if await health.saveStrengthWorkout(start: strengthStart, end: strengthEnd, kcal: record) {
+                total += kcal
+                result.saved = true
+                result.source = source
             }
         }
-        return savedAny ? total : nil
+        if result.saved { result.kcal = total }
+        return result
+    }
+
+    /// Connects Apple Health. Returns nil when it worked, else the reason it didn't.
+    func connectHealth() async -> String? {
+        let ok = await health.requestAuthorization()
+        settings.healthEnabled = ok
+        return ok ? nil : (health.lastError ?? "Apple Health didn't respond.")
     }
 
     private func advanceProgram(after w: Workout) {

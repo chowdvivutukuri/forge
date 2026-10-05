@@ -52,6 +52,15 @@ struct WatchWorkoutView: View {
                                     .font(.caption.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
+                            if manager.maxHeartRate > 0 {
+                                HStack {
+                                    Text("avg \(Int(manager.averageHeartRate)) · peak \(Int(manager.maxHeartRate))")
+                                    Spacer()
+                                    Text("+\(Int(manager.restingCalories)) resting")
+                                }
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                            }
                         }
                     }
 
@@ -93,7 +102,7 @@ struct WatchWorkoutView: View {
                         Task {
                             let result = await manager.end()
                             store.finish(calories: result.calories, averageHeartRate: result.averageHeartRate,
-                                         savedToHealth: result.saved)
+                                         maxHeartRate: result.maxHeartRate, savedToHealth: result.saved)
                             finishing = false
                         }
                     }

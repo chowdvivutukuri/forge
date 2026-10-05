@@ -78,6 +78,7 @@ targets:
         WKBackgroundModes: [workout-processing]
         NSHealthShareUsageDescription: "Forge reads heart rate and calories during your workout."
         NSHealthUpdateUsageDescription: "Forge saves your strength workouts to Apple Health."
+        NSMotionUsageDescription: "Forge uses your Watch's motion sensors to count reps during a set."
     entitlements:
       path: Support/Watch.entitlements
       properties:

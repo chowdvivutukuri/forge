@@ -81,13 +81,15 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
         send(w)
     }
 
-    func finish(calories: Double?, averageHeartRate: Double?, savedToHealth: Bool) {
+    func finish(calories: Double?, averageHeartRate: Double?, maxHeartRate: Double?, savedToHealth: Bool) {
         guard var w = workout else { return }
         let now = Date()
         w.finishedAt = now
         if w.startedAt == nil { w.startedAt = now.addingTimeInterval(-45 * 60) }
         w.calories = calories
         w.averageHeartRate = averageHeartRate
+        w.maxHeartRate = maxHeartRate
+        w.calorieSource = calories == nil ? nil : "watch"
         w.savedToHealth = savedToHealth
         w.updatedAt = now
         if let d = SyncCoding.encode(w) {
