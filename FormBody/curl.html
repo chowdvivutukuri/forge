@@ -1,0 +1,510 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><title>Dumbbell Curl</title>
+<style>
+/* Layout: a coaching board. Big 3D stage on the left, a live joint-angle readout on the right; stacks on phones. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --ink:#18212b; --muted:#5b6877; --line:#d5dbe2;
+  --body:#2b3a4a; --body-far:#9aa6b3; --joint:#ffffff;
+  --accent:#0e7c86; --arc:#e0782b; --good:#1f8a4c; --good-bg:#e3f4ea; --ghost:#0e7c86; --primary:#d33a4e; --secondary:#7c4dea; --figure:#b4bbc4; --wear:#3b4350;
+  --font-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --font-body:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10161d; --surface:#18212b; --ink:#e8edf2; --muted:#93a1b0; --line:#2a3644;
+  --body:#c9d3dd; --body-far:#4b5a6a; --joint:#10161d;
+  --accent:#3cc3cd; --arc:#f29a52; --good:#4fd18a; --good-bg:#173527; --ghost:#3cc3cd; --primary:#ff6b7d; --secondary:#b39bff; --figure:#aab2bc; --wear:#4a5462; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#10161d; --surface:#18212b; --ink:#e8edf2; --muted:#93a1b0; --line:#2a3644;
+  --body:#c9d3dd; --body-far:#4b5a6a; --joint:#10161d;
+  --accent:#3cc3cd; --arc:#f29a52; --good:#4fd18a; --good-bg:#173527; --ghost:#3cc3cd; --primary:#ff6b7d; --secondary:#b39bff; --figure:#aab2bc; --wear:#4a5462; color-scheme:dark }
+html,body{background:var(--bg)}
+body{color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 32px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px}
+h1{font-family:var(--font-display);font-weight:700;font-size:2rem;line-height:1;margin:0;letter-spacing:.01em;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;max-width:60ch}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font:600 .95rem var(--font-body);border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:7px 14px;border-radius:999px;cursor:pointer}
+.tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:780px){.grid{grid-template-columns:1fr}}
+.stage{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+canvas{display:block;width:100%;aspect-ratio:1/1;max-height:72vh;max-width:100%}
+.controls{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.controls button{font:600 .9rem var(--font-body);background:var(--ink);color:var(--bg);border:0;border-radius:8px;padding:7px 14px;cursor:pointer;min-width:74px}
+.controls input[type=range]{flex:1;min-width:140px;accent-color:var(--accent)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.controls .seg button{background:var(--surface);color:var(--ink);border-radius:0;min-width:0;padding:7px 12px}
+.controls .seg button[aria-pressed="true"]{background:var(--accent);color:var(--bg)}
+.controls label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:.9rem;cursor:pointer}
+.phase{font:500 .8rem var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;min-width:9ch}
+.panel{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+.eyebrow{font:600 .75rem var(--font-body);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:0 0 8px}
+.rom{font-family:var(--font-display);font-size:1.6rem;font-weight:600;line-height:1.1;margin:0}
+.rom b{color:var(--arc);font-variant-numeric:tabular-nums}
+.romnote{color:var(--muted);margin:6px 0 0;font-size:.92rem}
+.joints{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.joint{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:baseline}
+.joint .name{font-weight:600}
+.joint .val{font:700 1.35rem var(--font-mono);font-variant-numeric:tabular-nums;color:var(--arc);text-align:right}
+.joint .tgt{color:var(--muted);font-size:.88rem;grid-column:1}
+.chip{grid-column:2;justify-self:end;font:600 .72rem var(--font-body);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.chip.on{background:var(--good-bg);color:var(--good);border-color:transparent}
+.bar{grid-column:1/-1;position:relative;height:8px;border-radius:4px;background:var(--line);margin-top:4px}
+.bar .zone{position:absolute;top:0;bottom:0;background:var(--good);opacity:.35;border-radius:4px}
+.bar .tick{position:absolute;top:-3px;width:3px;height:14px;background:var(--arc);border-radius:2px;transform:translateX(-50%)}
+.scale{grid-column:1/-1;display:flex;justify-content:space-between;font:500 .7rem var(--font-mono);color:var(--muted)}
+ul.cues{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px}
+.muscles{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.muscles li{display:grid;grid-template-columns:14px 1fr;gap:2px 10px;align-items:baseline}
+.sw{width:14px;height:14px;border-radius:50%;align-self:center}
+.sw.p{background:var(--primary)} .sw.s{background:var(--secondary)}
+.muscles .role{font:600 .72rem var(--font-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.muscles .what{grid-column:2;font-weight:600}
+.muscles .why{grid-column:2;color:var(--muted);font-size:.88rem}
+.foot{color:var(--muted);font-size:.85rem;max-width:75ch}
+.view{position:relative;touch-action:none;cursor:grab}
+.view:active{cursor:grabbing}
+#gl{display:block;width:100%;aspect-ratio:1/1;max-height:72vh;max-width:100%}
+.lbl{position:absolute;left:0;top:0;transform:translate(-50%,-50%);font:700 .85rem var(--font-mono);padding:2px 8px;border-radius:999px;color:var(--surface);pointer-events:none;white-space:nowrap}
+.hint{position:absolute;right:10px;top:10px;font:500 .72rem var(--font-mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;pointer-events:none}
+.controls .row{display:flex;gap:10px;flex-wrap:wrap;width:100%;align-items:center}
+.nogl{padding:24px;color:var(--muted)}
+.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font:500 .9rem var(--font-body);pointer-events:none}
+[hidden]{display:none!important}
+header,.foot{display:none}
+body{padding-block:8px 24px}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Dumbbell Curl · form sample</h1>
+      <p class="sub">A preview of the new Forge animations: a realistic 3D body, the dumbbells, the live arm angle, and how many degrees each rep needs to travel. Drag to turn it around.</p>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="stage">
+      <div class="view" id="view">
+        <canvas id="gl" aria-label="3D form animation of a dumbbell curl with joint angles"></canvas>
+        <span class="hint">Drag to rotate</span>
+        <span class="loading" id="loading">Loading body model…</span>
+        <span class="lbl" id="lbl0"></span><span class="lbl" id="lbl1"></span>
+      </div>
+      <div class="controls">
+        <div class="row">
+          <button id="play" type="button">Pause</button>
+          <span class="phase" id="phase">Arm long</span>
+          <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Scrub through the rep">
+        </div>
+        <div class="row">
+          <span class="seg" role="group" aria-label="Camera view">
+            <button type="button" id="v-side" data-view="side" aria-pressed="true">Side</button><button type="button" id="v-front" data-view="front" aria-pressed="false">Front</button><button type="button" id="v-back" data-view="back" aria-pressed="false">Back</button><button type="button" id="v-spin" data-view="spin" aria-pressed="false">360°</button>
+          </span>
+          <span class="seg" role="group" aria-label="Body type (from profile sex)">
+            <button type="button" id="bt-male" data-bt="male" aria-pressed="true">Male</button><button type="button" id="bt-female" data-bt="female" aria-pressed="false">Female</button>
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="card">
+        <p class="eyebrow">Target muscles</p>
+        <ul class="muscles">
+          <li><span class="sw p"></span><span class="role">Primary</span><span class="what">Biceps brachii</span><span class="why">Front of the upper arm. Bends the elbow and turns the palm up.</span></li>
+          <li><span class="sw s"></span><span class="role">Secondary</span><span class="what">Brachialis</span><span class="why">Under the biceps, just above the elbow. Pure elbow flexor.</span></li>
+          <li><span class="sw s"></span><span class="role">Secondary</span><span class="what">Brachioradialis</span><span class="why">Thumb side of the forearm near the elbow. Helps most mid-range.</span></li>
+        </ul>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Range of motion</p>
+        <p class="rom" id="rom"></p>
+        <p class="romnote">Start with the arm almost straight and finish with the forearm well past vertical. The upper arm barely moves.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Joint angles, live</p>
+        <ul class="joints" id="joints"></ul>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Equipment</p>
+        <p style="margin:0">Pair of hex dumbbells, supinated grip (palms up). Feet hip-width.</p>
+      </div>
+      <div class="card">
+        <p class="eyebrow">Cues</p>
+        <ul class="cues">
+          <li>Elbows stay pinned by your sides (shoulder under 15°).</li>
+          <li>Squeeze at the top, around 40–45° at the elbow.</li>
+          <li>Lower all the way to about 165°, not locked hard.</li>
+          <li>No hip swing: torso stays upright.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <p class="foot">Angles are the inside angle at each joint, measured in the side plane (180° = straight). The body shape follows the sex set in your Forge profile; switch it here to preview both. The body is the free MakeHuman model (CC0 licence), shaped male or female with its built-in body sliders and posed joint by joint.</p>
+</div>
+
+<script src="forge-body.js"></script>
+<script src="three.min.js"></script>
+<script src="GLTFLoader.js"></script>
+<script>
+(()=>{
+const view=document.getElementById('view'),cv=document.getElementById('gl'),loadingEl=document.getElementById('loading');
+if(!window.THREE||!THREE.GLTFLoader){loadingEl.textContent='The 3D viewer could not load. Reload the page to try again.';return;}
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+
+// ---------- the rep, in the side plane (angles from straight up, + = forward) ----------
+function pose(p){const ua=180-10*p,E=165-120*p;return{p,ua,E,fa:ua+180+E};}
+const ANG=[
+  {label:"Elbow",f:j=>j.E,lo:35,hi:50,when:"at the top",min:20,max:180},
+  {label:"Shoulder",f:j=>180-j.ua,lo:0,hi:15,when:"the whole rep",min:0,max:60}];
+const dirW=(a,lat=0)=>new THREE.Vector3(lat,Math.cos(rad(a)),Math.sin(rad(a))).normalize(); // model faces +z
+
+// ---------- scene ----------
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(26,1,.05,30);
+scene.add(new THREE.HemisphereLight(0xffffff,0x6b7480,.42));
+const key=new THREE.DirectionalLight(0xffffff,1.05);key.position.set(-2,3.2,2.4);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.bias=-.0002;key.shadow.normalBias=.02;key.shadow.radius=5;
+Object.assign(key.shadow.camera,{left:-.7,right:.7,top:1.9,bottom:-.1,near:.5,far:8});scene.add(key);
+const rim=new THREE.DirectionalLight(0xdfe8ff,.55);rim.position.set(2,2.2,-2.5);scene.add(rim);
+const floorM=new THREE.ShadowMaterial({opacity:.18});const floor=new THREE.Mesh(new THREE.CircleGeometry(1.2,64),floorM);floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);
+const ring=new THREE.Mesh(new THREE.RingGeometry(.78,.8,96),new THREE.MeshBasicMaterial({transparent:true,opacity:.5}));ring.rotation.x=-Math.PI/2;ring.position.y=.001;scene.add(ring);
+
+const skinM=new THREE.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.58,metalness:0});
+const greyM=new THREE.MeshStandardMaterial({roughness:.5});
+const iron=new THREE.MeshStandardMaterial({color:0x2b2e33,roughness:.42,metalness:.55}),chrome=new THREE.MeshStandardMaterial({color:0xc4c9cf,roughness:.22,metalness:.9});
+
+// hex dumbbells: handle along local x
+function dumbbell(){const g=new THREE.Group(),h=new THREE.Mesh(new THREE.CylinderGeometry(.016,.016,.15,20),chrome);h.rotation.z=Math.PI/2;g.add(h);
+  for(const e of[-1,1]){const hx=new THREE.Mesh(new THREE.CylinderGeometry(.062,.062,.065,6),iron);hx.rotation.z=Math.PI/2;hx.position.x=e*.105;g.add(hx);}
+  g.traverse(o=>{if(o.isMesh)o.castShadow=true;});scene.add(g);return g;}
+const DB={l:dumbbell(),r:dumbbell()};
+
+// angle arcs drawn in the side plane next to the right arm (the one facing the default camera)
+const arcs=[0,1].map(()=>{const g=new THREE.Group();g.rotation.y=-Math.PI/2;
+  const a=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({transparent:true,opacity:.28,depthTest:false,side:THREE.DoubleSide}));
+  const c=new THREE.Mesh(new THREE.BufferGeometry(),new THREE.MeshBasicMaterial({depthTest:false,side:THREE.DoubleSide}));a.renderOrder=c.renderOrder=10;g.add(a,c);scene.add(g);return{g,a,c};});
+function setArc(arc,B,A,C,col,k){
+  const a1=Math.atan2(A.y-B.y,A.z-B.z),a2=Math.atan2(C.y-B.y,C.z-B.z);let d=a2-a1;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;
+  const st=d<0?a2:a1,len=Math.abs(d);arc.a.geometry.dispose();arc.c.geometry.dispose();
+  arc.a.geometry=new THREE.CircleGeometry(.09,32,st,len);arc.c.geometry=new THREE.RingGeometry(.083,.093,32,1,st,len);
+  arc.a.material.color.set(col);arc.c.material.color.set(col);arc.g.position.set(B.x-.07,B.y,B.z);
+  const mid=st+len/2;return new THREE.Vector3(B.x-.07,B.y+Math.sin(mid)*k,B.z+Math.cos(mid)*k);}
+
+// ---------- body ----------
+let body=null,B={},rest=new Map(),meshes=[],BODY=new URLSearchParams(location.search).get('sex')==='female'?'female':'male',paint=null;
+document.querySelectorAll('[data-bt]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.bt===BODY));
+const SHAPE={
+  male:{gender_male:1,muscle_max:.55,corr_gender_male__muscle_max:.55,proportions_ideal:.6,weight_min:.15,corr_gender_male__weight_min:.15,corr_weight_min__muscle_max:.08},
+  female:{gender_female:1,muscle_max:.3,corr_gender_female__muscle_max:.3,breast_cup_max:.35,corr_breast_cup_max__muscle_max:.1,proportions_ideal:.6,weight_min:.1,corr_gender_female__weight_min:.1}};
+// The model's body sliders are stored as compressed morph targets. Bake the chosen mix into the
+// mesh on the CPU once per body type instead of leaving 92 live morphs on the GPU.
+// Read the body-slider targets straight from the file (they are compressed, partly sparse).
+const CT={5120:[1,'getInt8',127],5121:[1,'getUint8',255],5122:[2,'getInt16',32767],5123:[2,'getUint16',65535],5125:[4,'getUint32',1],5126:[4,'getFloat32',1]};
+function glbTargets(ab){
+  const dv=new DataView(ab),jl=dv.getUint32(12,true),J=JSON.parse(new TextDecoder().decode(new Uint8Array(ab,20,jl))),bin=20+jl+8;
+  const view=i=>{const v=J.bufferViews[i];return{off:bin+(v.byteOffset||0),stride:v.byteStride||0};};
+  function read(ai){const a=J.accessors[ai],[sz,get,dn]=CT[a.componentType],div=a.normalized?dn:1,out=new Float32Array(a.count*3);
+    if(a.bufferView!==undefined){const v=view(a.bufferView),st=v.stride||sz*3,o=v.off+(a.byteOffset||0);
+      for(let i=0;i<a.count;i++)for(let c=0;c<3;c++)out[i*3+c]=Math.max(-1e9,dv[get](o+i*st+c*sz,true)/div);}
+    if(a.sparse){const sp=a.sparse,[isz,iget]=CT[sp.indices.componentType],iv=view(sp.indices.bufferView),io=iv.off+(sp.indices.byteOffset||0),vv=view(sp.values.bufferView),vo=vv.off+(sp.values.byteOffset||0);
+      for(let n=0;n<sp.count;n++){const idx=dv[iget](io+n*isz,true);for(let c=0;c<3;c++)out[idx*3+c]=dv[get](vo+(n*3+c)*sz,true)/div;}}
+    return out;}
+  const want=new Set(Object.values(SHAPE).flatMap(o=>Object.keys(o))),res={};
+  J.meshes.forEach((m,mi)=>{const names=(m.extras&&m.extras.targetNames)||[];
+    m.primitives.forEach((p,pi)=>{const t={};(p.targets||[]).forEach((tg,ti)=>{if(!want.has(names[ti]))return;t[names[ti]]={pos:read(tg.POSITION),nor:tg.NORMAL!==undefined?read(tg.NORMAL):null};});res[mi+':'+pi]=t;});});
+  return res;}
+let TARGETS={};
+function prepMorphs(m,assoc){const g=m.geometry;const key=assoc?assoc.meshes+':'+assoc.primitives:null;
+  const flat=a=>{const o=new Float32Array(a.count*3);for(let i=0;i<a.count;i++){o[i*3]=a.getX(i);o[i*3+1]=a.getY(i);o[i*3+2]=a.getZ(i);}return o;};
+  g.setAttribute('position',new THREE.BufferAttribute(flat(g.attributes.position),3));
+  if(g.attributes.normal)g.setAttribute('normal',new THREE.BufferAttribute(flat(g.attributes.normal),3));
+  g.morphAttributes={};m.morphTargetInfluences=undefined;m.morphTargetDictionary=undefined;
+  if(key&&TARGETS[key])m.userData.morph={t:TARGETS[key],pos:g.attributes.position.array.slice(),nor:g.attributes.normal?g.attributes.normal.array.slice():null};}
+// ---------- modesty: smooth the groin and nipples flat, and dress the body in athletic wear ----------
+let MOD=null;
+function prepModesty(mesh){
+  const g=mesh.geometry,pos=g.attributes.position.array,n=pos.length/3,idx=g.index.array,bones=mesh.skeleton.bones;
+  const bp=name=>{const i=bones.findIndex(b=>b.name===name);return new THREE.Vector3().setFromMatrixPosition(mesh.skeleton.boneInverses[i].clone().invert());};
+  // weld split vertices (UV seams) so smoothing and normals stay seamless
+  const key=new Map(),grp=new Int32Array(n);let G=0;
+  for(let i=0;i<n;i++){const k=Math.round(pos[i*3]*1e4)+','+Math.round(pos[i*3+1]*1e4)+','+Math.round(pos[i*3+2]*1e4);let gi=key.get(k);if(gi===undefined){gi=G++;key.set(k,gi);}grp[i]=gi;}
+  const nb=Array.from({length:G},()=>new Set());
+  for(let t=0;t<idx.length;t+=3){const a=grp[idx[t]],b=grp[idx[t+1]],c=grp[idx[t+2]];nb[a].add(b);nb[a].add(c);nb[b].add(a);nb[b].add(c);nb[c].add(a);nb[c].add(b);}
+  const hipL=bp('thigh_l'),hipR=bp('thigh_r'),hip=hipL.clone().add(hipR).multiplyScalar(.5),knee=bp('calf_l'),sh=bp('upperarm_l'),neck=bp('neck_01');
+  // weights per vertex for clothing (exclude arms and hands)
+  const ji=g.attributes.skinIndex,jw=g.attributes.skinWeight,GET=[ji.getX,ji.getY,ji.getZ,ji.getW];
+  const armIdx=new Set(bones.map((b,i)=>/upperarm|lowerarm|hand|index|middle|ring|pinky|thumb/.test(b.name)?i:-1).filter(i=>i>=0));
+  let wMax=0;for(let k=0;k<200;k++)wMax=Math.max(wMax,jw.getX(k));const wS=wMax>1.5?1/255:1;
+  const groin=new Float32Array(G),chest=new Float32Array(G),wear=new Uint8Array(n),wearAmt=new Float32Array(n);
+  const gp=new Float32Array(G*3);for(let i=0;i<n;i++){gp.set([pos[i*3],pos[i*3+1],pos[i*3+2]],grp[i]*3);}
+  const sm=(a,b,x)=>smooth(a,b,x);
+  for(let q=0;q<G;q++){const x=gp[q*3],y=gp[q*3+1],z=gp[q*3+2];
+    groin[q]=(1-sm(.07,.11,Math.abs(x)))*sm(hip.y-.2,hip.y-.13,y)*(1-sm(hip.y-.02,hip.y+.04,y))*sm(hip.z-.03,hip.z+.01,z);
+    const cy=sh.y-.15;chest[q]=sm(.04,.07,Math.abs(x))*(1-sm(.13,.16,Math.abs(x)))*(1-sm(.035,.06,Math.abs(y-cy)))*sm(sh.z-.0,sh.z+.05,z);}
+  for(let i=0;i<n;i++){let arm=0;for(let c=0;c<4;c++){if(armIdx.has(GET[c].call(ji,i)))arm+=GET[c].call(jw,i)*wS;}if(arm>.25)continue;
+    const y=pos[i*3+1];
+    const band=(lo,hi)=>smooth(lo-.012,lo+.012,y)*(1-smooth(hi-.012,hi+.012,y)),fade=1-Math.min(1,arm*4);
+    const sAmt=band(hip.y-.22,hip.y+.09)*fade,tAmt=band(sh.y-.26,sh.y-.035)*(1-smooth(.14,.17,Math.abs(pos[i*3])))*fade;
+    if(sAmt>=tAmt&&sAmt>0){wear[i]=1;wearAmt[i]=sAmt;}else if(tAmt>0){wear[i]=2;wearAmt[i]=tAmt;}   // shorts / top (female only)
+  }
+  MOD={grp,G,nb,groin,chest,wear,wearAmt,idx};}
+function modesty(mesh){if(!MOD)return;const g=mesh.geometry,P=g.attributes.position.array,N=g.attributes.normal.array,{grp,G,nb,groin,chest,idx}=MOD,n=P.length/3;
+  const gp=new Float32Array(G*3);for(let i=0;i<n;i++){const q=grp[i];gp[q*3]=P[i*3];gp[q*3+1]=P[i*3+1];gp[q*3+2]=P[i*3+2];}
+  const w=new Float32Array(G);for(let q=0;q<G;q++)w[q]=Math.max(groin[q],chest[q]*(BODY==='male'?1:.9));
+  const tmp=new Float32Array(G*3);
+  for(let it=0;it<45;it++){for(let q=0;q<G;q++){if(!w[q]){continue;}let sx=0,sy=0,sz=0,c=0;for(const o of nb[q]){sx+=gp[o*3];sy+=gp[o*3+1];sz+=gp[o*3+2];c++;}
+      const k=.6*w[q]*(chest[q]>groin[q]&&it>14?0:1);tmp[q*3]=gp[q*3]+(sx/c-gp[q*3])*k;tmp[q*3+1]=gp[q*3+1]+(sy/c-gp[q*3+1])*k;tmp[q*3+2]=gp[q*3+2]+(sz/c-gp[q*3+2])*k;}
+    for(let q=0;q<G;q++)if(w[q]){gp[q*3]=tmp[q*3];gp[q*3+1]=tmp[q*3+1];gp[q*3+2]=tmp[q*3+2];}}
+  for(let i=0;i<n;i++){const q=grp[i];P[i*3]=gp[q*3];P[i*3+1]=gp[q*3+1];P[i*3+2]=gp[q*3+2];}
+  // welded normals so seams don't show
+  const gn=new Float32Array(G*3),a=new THREE.Vector3(),b=new THREE.Vector3(),c=new THREE.Vector3(),fn=new THREE.Vector3();
+  for(let t=0;t<idx.length;t+=3){const i0=idx[t],i1=idx[t+1],i2=idx[t+2];a.fromArray(P,i0*3);b.fromArray(P,i1*3);c.fromArray(P,i2*3);
+    fn.subVectors(c,b).cross(a.sub(b));for(const q of[grp[i0],grp[i1],grp[i2]]){gn[q*3]+=fn.x;gn[q*3+1]+=fn.y;gn[q*3+2]+=fn.z;}}
+  for(let i=0;i<n;i++){const q=grp[i],l=Math.hypot(gn[q*3],gn[q*3+1],gn[q*3+2])||1;N[i*3]=gn[q*3]/l;N[i*3+1]=gn[q*3+1]/l;N[i*3+2]=gn[q*3+2]/l;}
+  g.attributes.position.needsUpdate=true;g.attributes.normal.needsUpdate=true;}
+function applyShape(){for(const m of meshes){const d=m.userData.morph;if(!d)continue;const g=m.geometry,P=g.attributes.position.array,N=g.attributes.normal&&g.attributes.normal.array;
+  P.set(d.pos);if(N&&d.nor)N.set(d.nor);
+  for(const[k,w]of Object.entries(SHAPE[BODY])){const t=d.t[k];if(!t||!w)continue;
+    for(let n=0;n<P.length;n++)P[n]+=t.pos[n]*w;
+    if(N&&t.nor)for(let n=0;n<N.length;n++)N[n]+=t.nor[n]*w;}
+  if(N)for(let n=0;n<N.length;n+=3){const l=Math.hypot(N[n],N[n+1],N[n+2])||1;N[n]/=l;N[n+1]/=l;N[n+2]/=l;}
+  g.attributes.position.needsUpdate=true;if(N)g.attributes.normal.needsUpdate=true;g.computeBoundingSphere();}
+  if(paint){refitBones(paint.mesh);bakeGrip(paint.mesh);modesty(paint.mesh);}lastP=-1;}
+// The body-shape morphs move the skin but not the skeleton, so the joints drift away from the creases (by ~5 cm at the hands).
+// Move every bone by the average shift of the skin around its joint, then re-bind, so knuckles, wrists and elbows bend where the skin does.
+function refitBones(mesh){
+  const sk=mesh.skeleton,bones=sk.bones,s0=mesh.userData.skin0||{i:mesh.geometry.attributes.skinIndex.array,w:mesh.geometry.attributes.skinWeight.array};
+  const P_=mesh.geometry.attributes.position.array,D=mesh.userData.morph.pos,n=P_.length/3,wS=s0.w instanceof Float32Array?1:1/(s0.w instanceof Uint8Array?255:65535);
+  if(!sk.userData0){sk.userData0={p:bones.map(b=>b.position.clone()),inv:sk.boneInverses.map(x=>x.clone())};}
+  bones.forEach((b,i)=>{b.position.copy(sk.userData0.p[i]);b.quaternion.copy(rest.get(b));});body.updateMatrixWorld(true);
+  const bi=new Map(bones.map((b,i)=>[b,i])),sum=bones.map(()=>[0,0,0,0]),own=bones.map(()=>[0,0,0,0]);
+  for(let k=0;k<n;k++){const w4=[],i4=[];for(let c=0;c<4;c++){i4.push(s0.i[k*4+c]);w4.push(s0.w[k*4+c]*wS);}
+    const dx=P_[k*3]-D[k*3],dy=P_[k*3+1]-D[k*3+1],dz=P_[k*3+2]-D[k*3+2];
+    for(let c=0;c<4;c++){const w=w4[c];if(!w)continue;const o=own[i4[c]];o[0]+=dx*w;o[1]+=dy*w;o[2]+=dz*w;o[3]+=w;
+      const par=bi.get(bones[i4[c]].parent);if(par===undefined)continue;
+      for(let e=0;e<4;e++)if(i4[e]===par&&w4[e]){const x=Math.min(w,w4[e]),t=sum[i4[c]];t[0]+=dx*x;t[1]+=dy*x;t[2]+=dz*x;t[3]+=x;}}}   // the crease between a bone and its parent
+  const want=bones.map((b,i)=>{const t=sum[i][3]>.5?sum[i]:own[i][3]>.5?own[i]:null,p=new THREE.Vector3().setFromMatrixPosition(sk.userData0.inv[i].clone().invert());
+    if(t)p.add(new THREE.Vector3(t[0]/t[3],t[1]/t[3],t[2]/t[3]));return p;});
+  const walk=b=>{const i=bi.get(b);if(i!==undefined){b.parent.updateMatrixWorld(true);b.position.copy(b.parent.worldToLocal(want[i].clone()));b.updateMatrixWorld(true);}for(const c of b.children)if(c.isBone)walk(c);};
+  walk(bones[0]);body.updateMatrixWorld(true);
+  for(const m of meshes)if(m.isSkinnedMesh)m.skeleton.calculateInverses();
+}
+
+
+// muscle map, worked out once from the bind pose and skin weights
+function buildPaint(mesh){
+  const g=mesh.geometry,pos=g.attributes.position,ji=g.attributes.skinIndex,jw=g.attributes.skinWeight,bones=mesh.skeleton.bones;
+  const bindPos=name=>{const i=bones.findIndex(b=>b.name===name);return new THREE.Vector3().setFromMatrixPosition(mesh.skeleton.boneInverses[i].clone().invert());};
+  const idx=name=>bones.findIndex(b=>b.name===name);
+  const GET=[THREE.BufferAttribute.prototype.getX,THREE.BufferAttribute.prototype.getY,THREE.BufferAttribute.prototype.getZ,THREE.BufferAttribute.prototype.getW];
+  let wMax=0;for(let k=0;k<Math.min(jw.count,200);k++)wMax=Math.max(wMax,jw.getX(k));const wScale=wMax>1.5?1/255:1;
+  const roles=new Float32Array(pos.count*2); // [primary, secondary] strength per vertex
+  const v=new THREE.Vector3(),seg=new THREE.Vector3(),r=new THREE.Vector3();
+  for(const s of['l','r']){
+    const S=bindPos('upperarm_'+s),E=bindPos('lowerarm_'+s),H=bindPos('hand_'+s),iU=idx('upperarm_'+s),iL=idx('lowerarm_'+s);
+    const up=new THREE.Vector3(0,1,0),fwd=new THREE.Vector3(0,0,1);
+    for(let k=0;k<pos.count;k++){
+      let wU=0,wL=0;for(let c=0;c<4;c++){const j=GET[c].call(ji,k),w=GET[c].call(jw,k)*wScale;if(j===iU)wU+=w;if(j===iL)wL+=w;}
+      if(wU+wL<.3)continue;v.fromBufferAttribute(pos,k);
+      if(wU>=wL){seg.subVectors(E,S);const t=v.clone().sub(S).dot(seg)/seg.lengthSq();r.copy(v).sub(S).addScaledVector(seg,-t).normalize();
+        const front=r.dot(fwd),top=r.dot(up);
+        const bic=smooth(.12,.32,t)*(1-smooth(.82,.97,t))*smooth(.15,.55,front);
+        const brach=smooth(.6,.75,t)*(1-smooth(.95,1.0,t))*smooth(.05,.35,front)*smooth(.1,.5,top)*(1-bic);
+        roles[k*2]=Math.max(roles[k*2],bic);roles[k*2+1]=Math.max(roles[k*2+1],brach*.9);}
+      else{seg.subVectors(H,E);const t=v.clone().sub(E).dot(seg)/seg.lengthSq();r.copy(v).sub(E).addScaledVector(seg,-t).normalize();
+        const br=smooth(.06,.16,t)*(1-smooth(.42,.6,t))*smooth(.05,.45,r.dot(fwd))*smooth(-.3,.2,r.dot(up));
+        roles[k*2+1]=Math.max(roles[k*2+1],br);}
+    }}
+  const col=new Float32Array(pos.count*3);g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  return{roles,col,attr:g.attributes.color,mesh};}
+function repaint(p){if(!paint)return;
+  const base=new THREE.Color(css('--figure')),pri=new THREE.Color(css('--primary')),sec=new THREE.Color(css('--secondary')),c=new THREE.Color();
+  const ip=.85+.15*p,is=.75+.2*p,{roles,col}=paint,wearC=new THREE.Color(css('--wear')),wr=MOD?MOD.wear:null,wa=MOD?MOD.wearAmt:null;
+  for(let k=0;k<roles.length/2;k++){c.copy(base);if(wr&&(wr[k]===1||(wr[k]===2&&BODY==='female')))c.lerp(wearC,wa[k]);if(roles[k*2+1])c.lerp(sec,roles[k*2+1]*is);if(roles[k*2])c.lerp(pri,roles[k*2]*ip);col[k*3]=c.r;col[k*3+1]=c.g;col[k*3+2]=c.b;}
+  paint.attr.needsUpdate=true;}
+
+// ---------- posing helpers (all in world space) ----------
+const tq=new THREE.Quaternion(),tq2=new THREE.Quaternion(),wp=new THREE.Vector3(),wc=new THREE.Vector3();
+function setWorldQuat(bone,qWorld){bone.parent.getWorldQuaternion(tq2);bone.quaternion.copy(tq2.invert().multiply(qWorld));bone.updateMatrixWorld(true);}
+function aim(bone,child,dir){bone.getWorldPosition(wp);child.getWorldPosition(wc);const cur=wc.sub(wp).normalize();
+  const d=new THREE.Quaternion().setFromUnitVectors(cur,dir);bone.getWorldQuaternion(tq);setWorldQuat(bone,d.multiply(tq));}
+function twist(bone,axis,ang){bone.getWorldQuaternion(tq);setWorldQuat(bone,new THREE.Quaternion().setFromAxisAngle(axis,ang).multiply(tq));}
+const P=b=>b.getWorldPosition(new THREE.Vector3());
+
+let GRIPPING=false;const GRIPC={};
+function curlHand(s,sx,palm,C0,acr,f){
+  // the fingers close toward the palm side, which is opposite the forearm's curl direction vector used above
+  const pn=palm.clone().negate(),GP=window.__gp||{along:.92,off:.026,r:.016,th:.007};
+  const K=P(B['middle_01_'+s]).add(P(B['ring_01_'+s])).multiplyScalar(.5),Hp=P(B['hand_'+s]);
+  const C=Hp.clone().lerp(K,GP.along).addScaledVector(pn,GP.off);   // just under the knuckles, across the palm crease
+  const clear=pt=>{const d=pt.clone().sub(C);d.addScaledVector(acr,-d.dot(acr));return d.length()-(GP.r+GP.th);};
+  // each joint, knuckle first, bends in the plane of the palm until its finger segment meets the handle
+  const ax=(a,b)=>new THREE.Vector3().crossVectors(palm,P(b).sub(P(a)).normalize()).normalize();
+  const tipOf=(b2,b3)=>P(b3).add(P(b3).sub(P(b2)).multiplyScalar(.8));
+  const seg=(a,b,fn)=>{for(let t=.25;t<=1.001;t+=.25)if(fn(a.clone().lerp(b,t))<-.003)return true;return false;};
+  const LIM=[85,100,70];
+  for(const fn of['index','middle','ring','pinky']){const b1=B[`${fn}_01_${s}`],b2=B[`${fn}_02_${s}`],b3=B[`${fn}_03_${s}`];
+    twist(b1,palm,rad({index:4,middle:0,ring:-4,pinky:-9}[fn]*sx));b1.updateMatrixWorld(true);   // draw the fingers together
+    const chain=[[b1,()=>[P(b1),P(b2),P(b3),tipOf(b2,b3)]],[b2,()=>[P(b2),P(b3),tipOf(b2,b3)]],[b3,()=>[P(b3),tipOf(b2,b3)]]];
+    chain.forEach(([bn,pts],j)=>{const axis=j<2?ax(bn,j?b3:b2):ax(b2,b3);let a=0;
+      while(a<LIM[j]){const q=bn.quaternion.clone();twist(bn,axis,rad(2));bn.updateMatrixWorld(true);
+        const p=pts();let hit=false;for(let i=0;i<p.length-1&&!hit;i++)hit=seg(p[i],p[i+1],clear);
+        if(hit){bn.quaternion.copy(q);bn.updateMatrixWorld(true);break;}a+=2;}});}
+  // thumb wraps over the curled index and middle fingers
+  const out=(pt,k)=>{const d=pt.clone().sub(C);d.addScaledVector(acr,-d.dot(acr)).normalize();return pt.clone().addScaledVector(d,k);};
+  const T1=B['thumb_01_'+s],T2=B['thumb_02_'+s],T3=B['thumb_03_'+s],TG=window.__tg||{j:[.016,-.012],t:[.012,.006]};
+  const jT=out(P(B['index_02_'+s]),TG.j[0]).addScaledVector(acr,TG.j[1]);
+  const tT=out(P(B['index_02_'+s]).lerp(P(B['index_03_'+s]),.5),TG.t[0]).addScaledVector(acr,TG.t[1]);
+  aim(T1,T2,jT.clone().sub(P(T1)).normalize());T1.updateMatrixWorld(true);
+  aim(T2,T3,tT.clone().sub(P(T2)).normalize());T2.updateMatrixWorld(true);
+  {const d=P(T3).sub(P(T2)).normalize();twist(T3,new THREE.Vector3().crossVectors(palm,d).normalize(),rad(20));}
+  const Hb=B['hand_'+s],hq=Hb.getWorldQuaternion(new THREE.Quaternion()).invert();
+  GRIPC[s]={p:Hb.worldToLocal(C.clone()),q:hq.multiply(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1,0,0),acr))};
+}
+// The grip never changes during the lift, so the fist is posed once and baked into the mesh: each finger vertex is
+// re-expressed rigidly on the hand bone, then the knuckle creases are relaxed so the fingers read as soft flesh, not hinged tubes.
+function bakeGrip(mesh){
+  const g=mesh.geometry,P_=g.attributes.position.array,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,bones=mesh.skeleton.bones;
+  if(!mesh.userData.skin0)mesh.userData.skin0={i:si.array.slice(),w:sw.array.slice()};
+  si.array.set(mesh.userData.skin0.i);sw.array.set(mesh.userData.skin0.w);
+  const wS=sw.array instanceof Float32Array?1:1/(sw.array instanceof Uint8Array?255:65535);
+  GRIPPING=true;poseBody(pose(0));GRIPPING=false;body.updateMatrixWorld(true);
+  const M=bones.map((b,i)=>new THREE.Matrix4().multiplyMatrices(b.matrixWorld,mesh.skeleton.boneInverses[i]));
+  const fing=new Map(),hand={};
+  bones.forEach((b,i)=>{const m=/^(index|middle|ring|pinky|thumb)_0\d_([lr])$/.exec(b.name);if(m)fing.set(i,m[2]);if(/^hand_[lr]$/.test(b.name))hand[b.name.slice(-1)]=i;});
+  const n=P_.length/3,v=new THREE.Vector3(),Mn=new THREE.Matrix4(),moved=new Float32Array(n);
+  // each finger bone's motion relative to its hand, as a unit dual quaternion
+  const ID8=[0,0,0,1,0,0,0,0],DQ=[],TQ=new THREE.Quaternion(),TV=new THREE.Vector3(),dp=new THREE.Vector3(),dq=new THREE.Quaternion(),ds=new THREE.Vector3();
+  for(const[bi,sd]of fing){new THREE.Matrix4().copy(M[hand[sd]]).invert().multiply(M[bi]).decompose(dp,dq,ds);const{x:tx,y:ty,z:tz}=dp,{x:qx,y:qy,z:qz,w:qw}=dq;
+    DQ[bi]=[qx,qy,qz,qw,.5*(tx*qw+ty*qz-tz*qy),.5*(-tx*qz+ty*qw+tz*qx),.5*(tx*qy-ty*qx+tz*qw),-.5*(tx*qx+ty*qy+tz*qz)];}
+  for(let k=0;k<n;k++){let fw=0,side=null;for(let c=0;c<4;c++){const bi=si.array[k*4+c],w=sw.array[k*4+c]*wS;if(w>0&&fing.has(bi)){fw+=w;side=fing.get(bi);}}
+    if(!fw)continue;
+    // fold each finger weight into its own hand bone (a few vertices carry weights from both hands)
+    const hi=hand[side],acc=new Map();let other=0;
+    for(let c=0;c<4;c++){const bi=si.array[k*4+c],w=sw.array[k*4+c]*wS;if(!w)continue;const to=fing.has(bi)?hand[fing.get(bi)]:bi;acc.set(to,(acc.get(to)||0)+w);if(to!==hi)other+=w;}
+    const ws=[0,0,0,0],is=[0,0,0,0];[...acc].forEach(([bi,w],c)=>{is[c]=bi;ws[c]=w;});
+    v.fromArray(P_,k*3);
+    if(other<1e-3&&!window.__lbs){
+      // dual-quaternion blend relative to the hand: bent knuckles keep their volume instead of pinching like linear skinning
+      const b8=[0,0,0,0,0,0,0,0];let ref=null;
+      for(let c=0;c<4;c++){const bi=si.array[k*4+c],w=sw.array[k*4+c]*wS;if(!w)continue;const d=DQ[bi]||ID8;
+        if(!ref)ref=d;const sg=(d[0]*ref[0]+d[1]*ref[1]+d[2]*ref[2]+d[3]*ref[3])<0?-w:w;for(let q=0;q<8;q++)b8[q]+=d[q]*sg;}
+      const L=Math.hypot(b8[0],b8[1],b8[2],b8[3]);for(let q=0;q<8;q++)b8[q]/=L;
+      const[rx,ry,rz,rw,dx,dy,dz,dw]=b8;v.applyMatrix4(mesh.bindMatrix);
+      v.applyQuaternion(TQ.set(rx,ry,rz,rw)).add(TV.set(2*(-dw*rx+dx*rw-dy*rz+dz*ry),2*(-dw*ry+dx*rz+dy*rw-dz*rx),2*(-dw*rz-dx*ry+dy*rx+dz*rw)));
+      v.applyMatrix4(mesh.bindMatrixInverse);
+    }else{
+      // near the wrist: linear skinning, then fold the finger weights into the hand bone
+      mesh.boneTransform(k,v);
+      const e=Mn.elements.fill(0);for(let c=0;c<4;c++)if(ws[c]){const me=M[is[c]].elements;for(let q=0;q<16;q++)e[q]+=me[q]*ws[c];}
+      v.applyMatrix4(mesh.bindMatrix).applyMatrix4(Mn.invert()).applyMatrix4(mesh.bindMatrixInverse);}
+    v.toArray(P_,k*3);moved[k]=Math.min(1,fw*1.5);
+    for(let c=0;c<4;c++){si.array[k*4+c]=is[c];sw.array[k*4+c]=ws[c]/wS;}}
+  si.needsUpdate=sw.needsUpdate=true;
+  // Taubin smoothing (shrink, then inflate) on the welded finger surface
+  if(!MOD)return;const{grp,G,nb}=MOD,gp=new Float32Array(G*3),gw=new Float32Array(G),tmp=new Float32Array(G*3);
+  for(let k=0;k<n;k++){const q=grp[k];gp.set([P_[k*3],P_[k*3+1],P_[k*3+2]],q*3);gw[q]=Math.max(gw[q],moved[k]);}
+  for(let it=0;it<(12);it++){const lam=it%2?-.53:.5;
+    for(let q=0;q<G;q++){if(!gw[q])continue;let x=0,y=0,z=0,c=0;for(const o of nb[q]){x+=gp[o*3];y+=gp[o*3+1];z+=gp[o*3+2];c++;}
+      const k=lam*gw[q];tmp[q*3]=gp[q*3]+(x/c-gp[q*3])*k;tmp[q*3+1]=gp[q*3+1]+(y/c-gp[q*3+1])*k;tmp[q*3+2]=gp[q*3+2]+(z/c-gp[q*3+2])*k;}
+    for(let q=0;q<G;q++)if(gw[q]){gp[q*3]=tmp[q*3];gp[q*3+1]=tmp[q*3+1];gp[q*3+2]=tmp[q*3+2];}}
+  for(let k=0;k<n;k++)if(moved[k]){const q=grp[k];P_[k*3]=gp[q*3];P_[k*3+1]=gp[q*3+1];P_[k*3+2]=gp[q*3+2];}
+}
+function poseBody(j){
+  for(const[b,q]of rest)b.quaternion.copy(q);body.updateMatrixWorld(true);
+  for(const s of['l','r']){
+    const sx=s==='l'?1:-1,U=B['upperarm_'+s],L=B['lowerarm_'+s],H=B['hand_'+s];
+    aim(U,L,dirW(j.ua,sx*.16));
+    aim(L,H,dirW(j.fa,sx*.06));
+    // supinate: palm faces the way the forearm curls, thumb out to the side
+    const f=P(H).sub(P(L)).normalize(),palm=dirW(j.fa-90);
+    const across=P(B['pinky_01_'+s]).sub(P(B['index_01_'+s]));across.addScaledVector(f,-across.dot(f)).normalize();
+    const want=new THREE.Vector3().crossVectors(f,palm).multiplyScalar(sx);want.addScaledVector(f,-want.dot(f)).normalize();
+    let a=Math.atan2(f.dot(new THREE.Vector3().crossVectors(across,want)),across.dot(want));
+    // forearm rotation happens along the forearm, not at the elbow, so most of it goes to the wrist end
+    twist(L,f,a*.3);twist(H,f,a*.7);
+    aim(H,B['middle_01_'+s],f.clone().addScaledVector(palm,.1).normalize());
+    // handle sits across the palm
+    const acr=P(B['pinky_01_'+s]).sub(P(B['index_01_'+s]));acr.addScaledVector(palm,-acr.dot(palm)).normalize();
+    const db=DB[s],C=P(H).lerp(P(B['middle_01_'+s]).add(P(B['ring_01_'+s])).multiplyScalar(.5),.92).addScaledVector(palm,.03);
+    if(GRIPC[s]&&!GRIPPING){db.position.copy(H.localToWorld(GRIPC[s].p.clone()));db.quaternion.copy(H.getWorldQuaternion(new THREE.Quaternion()).multiply(GRIPC[s].q));}
+    else{db.position.copy(C);db.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),acr);}
+    if(GRIPPING)curlHand(s,sx,palm,C,acr,f);
+  }
+}
+
+// ---------- load ----------
+// the model ships base64-encoded in forge-body.js next to the page
+Promise.resolve(window.FORGE_BODY||'').then(b64=>{if(!b64)throw new Error('missing body');return b64;}).then(b64=>{const bin=atob(b64.trim()),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return u.buffer;}).then(ab=>{TARGETS=glbTargets(ab);new THREE.GLTFLoader().parse(ab,'',gltf=>{
+  body=gltf.scene;scene.add(body);
+  body.traverse(o=>{if(o.isBone){B[o.name]=o;rest.set(o,o.quaternion.clone());}
+    if(o.isMesh){meshes.push(o);o.castShadow=true;o.receiveShadow=false;o.frustumCulled=false;prepMorphs(o,gltf.parser.associations.get(o));
+      if(/Eyebrows|Eyelashes|Teeth|Tongue/.test(o.name))o.visible=false;
+      else if(o.name==='base'||(o.parent&&o.parent.name==='base'&&o.geometry.attributes._ccregion===undefined&&!paint&&o.geometry.attributes.position.count>10000)){o.material=skinM;paint=buildPaint(o);}
+      else o.material=greyM;}});
+  if(!paint){const m=meshes.find(m=>m.geometry.attributes.position.count>10000);if(m){m.material=skinM;paint=buildPaint(m);}}
+  if(paint)prepModesty(paint.mesh);
+  applyShape();readColors();loadingEl.hidden=true;window.__ready=true;
+},fail);}).catch(fail);
+function fail(){loadingEl.textContent='The body model could not load. Reload the page to try again.';}
+
+// ---------- camera ----------
+let az=180,el=6,spin=false,drag=null;const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TARGET=new THREE.Vector3(0,.9,.04),VIEWS={side:180,front:-90,back:90};
+function placeCam(){const r=3.9,a=rad(az),e=rad(el);camera.position.set(Math.cos(e)*Math.cos(a)*r,TARGET.y+Math.sin(e)*r,-Math.cos(e)*Math.sin(a)*r);camera.lookAt(TARGET);}
+function setView(v){document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.view===v));spin=v==='spin';if(!spin){az=VIEWS[v];el=6;}}
+view.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,az,el};view.setPointerCapture(e.pointerId);});
+view.addEventListener('pointermove',e=>{if(!drag)return;az=drag.az-(e.clientX-drag.x)*.5;el=clamp(drag.el+(e.clientY-drag.y)*.3,-5,50);
+  spin=false;document.querySelectorAll('[data-view]').forEach(x=>x.setAttribute('aria-pressed','false'));});
+view.addEventListener('pointerup',()=>drag=null);view.addEventListener('pointercancel',()=>drag=null);
+
+// ---------- panel ----------
+const ui={play:document.getElementById('play'),scrub:document.getElementById('scrub'),phase:document.getElementById('phase'),rom:document.getElementById('rom'),joints:document.getElementById('joints'),lbl:[0,1].map(i=>document.getElementById('lbl'+i))};
+const v0=Math.round(ANG[0].f(pose(0))),v1=Math.round(ANG[0].f(pose(1)));
+ui.rom.innerHTML=`Elbow ${v0}° → ${v1}° · <b>${v0-v1}°</b> of travel`;
+ui.joints.innerHTML=ANG.map((a,i)=>{const span=a.max-a.min;return `<li class="joint"><span class="name">${a.label}</span><span class="val" id="v${i}">–</span>
+  <span class="tgt">Target ${a.lo}–${a.hi}° ${a.when}</span><span class="chip" id="c${i}">Moving</span>
+  <div class="bar"><div class="zone" style="left:${(a.lo-a.min)/span*100}%;width:${(a.hi-a.lo)/span*100}%"></div><div class="tick" id="k${i}"></div></div>
+  <div class="scale"><span>${a.min}°</span><span>${a.max}°</span></div></li>`}).join('');
+
+let playing=!reduce,t=reduce?.5:0,last=performance.now(),W=0,H=0,tick=0,col={},lastP=-1;
+const T=4.6;
+function pAt(t){const x=((t%1)+1)%1;if(x<.1)return 0;if(x<.45)return smooth(0,1,(x-.1)/.35);if(x<.55)return 1;if(x<.9)return 1-smooth(0,1,(x-.55)/.35);return 0;}
+function phaseName(t){const x=((t%1)+1)%1;return x<.1||x>=.9?'Arm long':x<.45?'Lifting':x<.55?'Top':'Lowering';}
+function readColors(){col={good:css('--good'),arc:css('--arc')};greyM.color.set(css('--figure'));ring.material.color.set(css('--line'));lastP=-1;}
+function resize(){const r=cv.getBoundingClientRect();if(r.width===W&&r.height===H)return;W=r.width;H=r.height;renderer.setSize(W,H,false);camera.aspect=W/H;camera.updateProjectionMatrix();}
+function frame(now){
+  const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(playing){t+=dt/T;ui.scrub.value=Math.round((((t%1)+1)%1)*1000);}
+  if(spin)az+=dt*30;
+  if(tick++%40===0)readColors();
+  resize();placeCam();
+  const p=pAt(t),j=pose(p);
+  if(body){poseBody(j);if(Math.abs(p-lastP)>.03){repaint(p);lastP=p;}
+    const sh=P(B.upperarm_r),elb=P(B.lowerarm_r),hd=P(B.hand_r),hip=P(B.thigh_r);
+    ANG.forEach((a,i)=>{const v=a.f(j),on=v>=a.lo-.5&&v<=a.hi+.5,c=on?col.good:col.arc;
+      const lp=i===0?setArc(arcs[0],elb,sh,hd,c,.17):setArc(arcs[1],sh,hip,elb,c,-.15);
+      const s=lp.project(camera),el=ui.lbl[i];el.style.left=((s.x+1)/2*W)+'px';el.style.top=((1-s.y)/2*H)+'px';el.style.background=c;el.textContent=`${a.label} ${Math.round(v)}°`;
+      document.getElementById('v'+i).textContent=Math.round(v)+'°';const ch=document.getElementById('c'+i);ch.textContent=on?'On target':'Moving';ch.classList.toggle('on',on);
+      document.getElementById('k'+i).style.left=clamp((v-a.min)/(a.max-a.min)*100,0,100)+'%';});}
+  ui.phase.textContent=phaseName(t);
+  renderer.render(scene,camera);requestAnimationFrame(frame);}
+
+ui.play.addEventListener('click',()=>{playing=!playing;ui.play.textContent=playing?'Pause':'Play';last=performance.now();});
+ui.scrub.addEventListener('input',()=>{playing=false;ui.play.textContent='Play';t=ui.scrub.value/1000;});
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+document.querySelectorAll('[data-bt]').forEach(b=>b.addEventListener('click',()=>{BODY=b.dataset.bt;document.querySelectorAll('[data-bt]').forEach(x=>x.setAttribute('aria-pressed',x===b));if(body)applyShape();}));
+ui.play.textContent=playing?'Pause':'Play';
+requestAnimationFrame(frame);
+})();
+</script>
+
+</html>
