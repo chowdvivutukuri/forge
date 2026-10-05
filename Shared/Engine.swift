@@ -63,7 +63,7 @@ struct WorkoutGenerator {
     var jitter: Double = 2.5
 
     var availableExercises: [Exercise] {
-        ExerciseLibrary.available(with: settings.availableEquipment, excluding: settings.excludedExerciseIDs)
+        ExerciseLibrary.available(with: settings.availableEquipment, excluding: settings.blockedExerciseIDs)
     }
 
     // MARK: Workouts
@@ -117,6 +117,7 @@ struct WorkoutGenerator {
                 var score = primary * 10
                 if ex.isCompound { score += chosen.count < 2 ? 4 : 1 }
                 if recentIDs.contains(ex.id) { score -= 2 }
+                score += settings.preferenceBonus(for: ex.id)
                 if jitter > 0 { score += Double.random(in: 0...jitter) }
                 if score > bestScore { bestScore = score; best = ex }
             }
