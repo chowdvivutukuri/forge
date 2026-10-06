@@ -119,6 +119,14 @@ struct FocusWorkoutView: View {
                     }
             }
             .buttonStyle(.plain)
+            if let label = workout.groupLabel(safeIndex) {
+                let members = workout.groupIndices(of: safeIndex)
+                Label("\(label.uppercased()) · then \(exercises[members[(members.firstIndex(of: safeIndex)! + 1) % members.count]].name)",
+                      systemImage: "link")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Theme.accent)
+                    .multilineTextAlignment(.center)
+            }
             Text(item.name).font(.title2.bold()).multilineTextAlignment(.center)
             if let ex = item.exercise {
                 Text(ex.primary.map(\.displayName).joined(separator: " · "))
@@ -191,10 +199,23 @@ struct FocusWorkoutView: View {
                 workout.exercises[safeIndex].sets[s].done = true
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 let lastOfExercise = workout.exercises[safeIndex].sets.allSatisfy(\.done)
-                if !(lastOfExercise && safeIndex == exercises.count - 1) {
-                    onSetCompleted(item.restSeconds)
+                if workout.isGrouped(safeIndex) {
+                    // Superset / circuit: straight on to the next exercise, rest after the round.
+                    let step = workout.afterSet(at: safeIndex)
+                    if step.rest, step.next != nil || nextUnfinished != nil {
+                        onSetCompleted(workout.roundRest(safeIndex))
+                    }
+                    if let n = step.next, n != safeIndex {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { withAnimation { index = n } }
+                    } else if step.next == nil {
+                        advanceIfComplete()
+                    }
+                } else {
+                    if !(lastOfExercise && safeIndex == exercises.count - 1) {
+                        onSetCompleted(item.restSeconds)
+                    }
+                    if lastOfExercise { advanceIfComplete() }
                 }
-                if lastOfExercise { advanceIfComplete() }
             } label: {
                 Label("Done — set \(s + 1)", systemImage: "checkmark")
                     .font(.title3.bold())

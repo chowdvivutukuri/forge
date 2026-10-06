@@ -206,20 +206,38 @@ final class WorkoutStore: ObservableObject {
         var w = workout
         w.updatedAt = Date()
         if w.startedAt == nil, w.completedSetCount > 0 { w.startedAt = Date() }
+        w.normalizeGroups()
         current = w
+    }
+
+    /// Superset this exercise with the one after it (or add the next one to its circuit).
+    func linkWithNext(itemID: UUID) {
+        guard var w = current, let i = w.exercises.firstIndex(where: { $0.id == itemID }) else { return }
+        w.linkWithNext(i)
+        update(w)
+    }
+
+    func unlink(itemID: UUID) {
+        guard var w = current, let i = w.exercises.firstIndex(where: { $0.id == itemID }) else { return }
+        w.unlink(i)
+        update(w)
     }
 
     func swap(itemID: UUID) {
         guard var w = current, let i = w.exercises.firstIndex(where: { $0.id == itemID }) else { return }
         let used = Set(w.exercises.map(\.exerciseID))
         guard let alt = generator.alternatives(to: w.exercises[i].exerciseID, excluding: used).randomElement() else { return }
+        let group = w.exercises[i].groupID
         w.exercises[i] = generator.makeEntry(for: alt)
+        w.exercises[i].groupID = group
         update(w)
     }
 
     func replace(itemID: UUID, with exercise: Exercise) {
         guard var w = current, let i = w.exercises.firstIndex(where: { $0.id == itemID }) else { return }
+        let group = w.exercises[i].groupID
         w.exercises[i] = generator.makeEntry(for: exercise)
+        w.exercises[i].groupID = group
         update(w)
     }
 
