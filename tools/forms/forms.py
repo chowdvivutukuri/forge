@@ -347,6 +347,34 @@ pat("hanging_knee_raise", "s",
     pose(50, 69.5, 96, ik(50, 96, -1), ang(8, -82, fa=0), root="sh"),
     props=post_bar(50, 96), period=2.4)
 
+# Calisthenics progressions
+pat("incline_pushup", "s",
+    pose(33.1, 30.9, 40, ik(64, 23.5, -1), st(4, 6.5, fa=-35)),
+    pose(36.9, 25.5, 30, ik(64, 23.5, -1), st(4, 6.5, fa=-35)),
+    props=bench(58, 80, 22), period=2.0)
+pat("knee_pushup", "s",
+    pose(34.7, 18.1, 39.4, ik(57, 7.5, -1), ang(-140.6, 180, fa=180)),
+    pose(38.1, 11.9, 18, ik(57, 7.5, -1), ang(-162, 180, fa=180)), period=2.0)
+pat("inverted_row", "s",
+    pose(39.9, 18.4, 19, ik(64, 52, -1), st(4, 6, fa=60)),
+    pose(34.3, 28.9, 37, ik(64, 52, -1), st(4, 6, fa=60)),
+    props=post_bar(64, 52), period=2.4)
+pat("dead_hang", "s",
+    pose(49.5, 70, 91, ik(50, 95, -1), ang(-92, -92, fa=-10), root="sh"),
+    pose(49.5, 71.5, 91, ik(50, 95, -1), ang(-92, -92, fa=-10), root="sh"),
+    props=post_bar(50, 95), period=3.0)
+pat("bench_dip", "s",
+    pose(44, 49, 90, ik(40, 23.5, -1), ik(66, 6, 1, fa=0), root="sh"),
+    pose(45, 37, 90, ik(40, 23.5, -1), ik(66, 6, 1, fa=0), root="sh"),
+    props=bench(18, 40, 22), period=2.2)
+pat("l_sit", "s",
+    pose(40, 14, 92, ang(-90, -90), ang(0, 0, fa=90)),
+    pose(40, 14.6, 92, ang(-90, -90), ang(5, 5, fa=90)),
+    props=[line((34, GROUND), (34, 12)), line((47, GROUND), (47, 12)), line((31, 12.5), (50, 12.5), w=2.4)], period=3.0)
+pat("pistol_squat", "s",
+    pose(43, 43.6, 90, ang(0, 0), stand_legs(), leg2=ang(-72, -72, fa=0)),
+    pose(34, 16, 50, ang(5, 5), ik(46, 6, 1, fa=0), leg2=ang(4, 4, fa=90)), period=3.0)
+
 # ---------- looping cardio patterns (a full gait cycle instead of A <-> B) ----------
 LOOP_FRAMES = 25
 
@@ -485,6 +513,10 @@ EX = {
     "crunch": ("crunch", NONE), "ab_crunch_machine": ("ab_machine", [HANDLE]), "dead_bug": ("dead_bug", NONE),
     "russian_twist": ("russian_twist", NONE), "pallof": ("pallof", [HANDLE]), "band_pallof": ("pallof", [HANDLE]),
     "kb_windmill": ("windmill", [imp("kettlebell", hands="near")]),
+    "knee_pushup": ("knee_pushup", NONE), "incline_pushup": ("incline_pushup", NONE), "archer_pushup": ("pushup", NONE),
+    "inverted_row": ("inverted_row", NONE), "negative_pullup": ("pullup", NONE), "dead_hang": ("dead_hang", NONE),
+    "bench_dip": ("bench_dip", NONE), "l_sit": ("l_sit", NONE), "bw_split_squat": ("split_squat", NONE),
+    "pistol_squat": ("pistol_squat", NONE),
     "plank": ("plank", NONE), "side_plank": ("side_plank", NONE), "hollow_hold": ("hollow_hold", NONE),
     "ab_wheel": ("ab_wheel", [imp("wheel", hands="center")]), "hanging_knee_raise": ("hanging_knee_raise", NONE),
     # cardio
@@ -560,6 +592,13 @@ CUES = {
     "russian_twist": ["Lean back, chest up", "Rotate side to side", "Move from the ribs, not just arms", "Feet down to make it easier"],
     "pallof": ["Stand side-on to the cable/band", "Press straight out from the chest", "Don't let it twist you", "Bring back to chest slowly"],
     "windmill": ["Weight locked out overhead", "Push hips to the side", "Reach down the front leg", "Eyes on the weight"],
+    "incline_pushup": ["Hands on a bench, body in a line", "Lower chest to the edge", "Elbows ~45° from your body", "Push away; lower surface = harder"],
+    "knee_pushup": ["Knees down, hips in line with shoulders", "Lower chest to just above the floor", "Elbows ~45° from your body", "Push the floor away"],
+    "inverted_row": ["Hang under a low bar or sturdy table", "Heels down, body straight", "Pull chest to the bar", "Lower all the way"],
+    "dead_hang": ["Grip the bar, arms straight", "Pull shoulders slightly down", "Legs still, breathe", "Hold for time"],
+    "bench_dip": ["Hands on the bench edge behind you", "Hips close to the bench", "Lower until upper arms are level", "Press back up"],
+    "l_sit": ["Hands beside your hips, arms locked", "Push down, lift your hips", "Legs straight out in front", "Tuck knees to make it easier"],
+    "pistol_squat": ["Stand on one leg, other leg forward", "Sit back and down slowly", "Hold a post for balance if needed", "Drive up through the heel"],
     "plank": ["Elbows under shoulders", "Squeeze glutes, ribs down", "Head to heels in one line", "Breathe — don't let hips sag"],
     "side_plank": ["Elbow under shoulder", "Feet stacked", "Lift hips into a straight line", "Don't let hips drop or roll"],
     "hollow_hold": ["Lower back pressed to the floor", "Lift shoulders and legs slightly", "Arms overhead, legs straight", "Bend knees to make it easier"],
@@ -575,6 +614,9 @@ EX_TIPS = {
     "chinup": "Palms facing you — more biceps.",
     "hammer_curl": "Palms facing each other.",
     "diamond_pushup": "Hands together under your chest.",
+    "archer_pushup": "Hands wide; lower toward one hand while the other arm stays straight. Alternate sides.",
+    "negative_pullup": "Jump or step to the top, then lower yourself slowly over 3–5 seconds.",
+    "bw_split_squat": "Back foot on a bench, no weights.",
     "smith_bench": "Set the safeties just above chest height.",
     "smith_squat": "Feet slightly in front of the bar.",
     "bw_lunge": "Step backward instead of forward.",

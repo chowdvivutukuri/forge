@@ -33,24 +33,25 @@ enum Injury: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .shoulder:
             return ["bb_ohp", "db_ohp", "kb_press", "machine_shoulder", "pike_pushup", "dips", "bb_bench", "bb_incline",
-                    "smith_bench", "close_grip_bench", "db_fly", "pec_deck", "kb_windmill", "skullcrusher"]
+                    "smith_bench", "close_grip_bench", "db_fly", "pec_deck", "kb_windmill", "skullcrusher", "bench_dip"]
         case .elbow:
-            return ["skullcrusher", "close_grip_bench", "db_oh_ext", "diamond_pushup", "dips", "bb_curl", "preacher_curl"]
+            return ["skullcrusher", "close_grip_bench", "db_oh_ext", "diamond_pushup", "dips", "bb_curl", "preacher_curl", "bench_dip"]
         case .wrist:
-            return ["pushup", "diamond_pushup", "pike_pushup", "front_squat", "bb_curl", "skullcrusher", "dips", "kb_windmill"]
+            return ["pushup", "diamond_pushup", "pike_pushup", "front_squat", "bb_curl", "skullcrusher", "dips", "kb_windmill",
+                    "archer_pushup", "l_sit", "bench_dip"]
         case .neck:
             return ["bb_shrug", "db_shrug", "back_squat", "crunch", "bb_ohp"]
         case .lowerBack:
             return ["deadlift", "bb_row", "bb_rdl", "back_squat", "band_good_morning", "kb_swing", "back_ext",
                     "russian_twist", "front_squat", "bb_shrug", "ab_wheel"]
         case .hip:
-            return ["split_squat", "db_lunge", "bw_lunge", "deadlift", "back_squat", "copenhagen", "adductor_machine",
+            return ["split_squat", "db_lunge", "bw_lunge", "deadlift", "back_squat", "copenhagen", "adductor_machine", "pistol_squat",
                     "abductor_machine"]
         case .knee:
             return ["leg_ext", "split_squat", "db_lunge", "bw_lunge", "hack_squat", "back_squat", "front_squat",
-                    "smith_squat", "tm_run", "tm_intervals"]
+                    "smith_squat", "tm_run", "tm_intervals", "pistol_squat", "bw_split_squat"]
         case .ankle:
-            return ["db_lunge", "bw_lunge", "split_squat", "bw_calf", "tm_run", "tm_intervals"]
+            return ["db_lunge", "bw_lunge", "split_squat", "bw_calf", "tm_run", "tm_intervals", "pistol_squat"]
         }
     }
 

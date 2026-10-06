@@ -106,6 +106,15 @@ struct WorkoutGenerator {
         let recentIDs = Set(history.suffix(2).flatMap { $0.exercises.map(\.exerciseID) })
 
         var pool = availableExercises.filter { !$0.isCardio && !Set($0.primary).isDisjoint(with: targets) }
+        if settings.calisthenics {
+            // Bodyweight only, and on each skill ladder just the level you're on.
+            let current = currentRungs()
+            pool = pool.filter { ex in
+                guard ex.isBodyweight else { return false }
+                guard let ladder = Calisthenics.ladder(containing: ex.id) else { return true }
+                return current[ladder.id] == ex.id
+            }
+        }
         var chosen: [Exercise] = []
         let count = max(3, min(10, settings.exercisesPerWorkout))
 
@@ -198,6 +207,11 @@ struct WorkoutGenerator {
                                    restSeconds: 45, targetReps: secs)
         }
         let goal = settings.goal
+        if settings.calisthenics, ex.isBodyweight {
+            let reps = Calisthenics.targetReps(ex.id, history: history)
+            return WorkoutExercise(exerciseID: ex.id, sets: (0..<3).map { _ in LoggedSet(reps: reps, weight: 0) },
+                                   restSeconds: ex.isCompound ? 90 : 60, targetReps: reps)
+        }
         let reps = ex.isCompound ? goal.targetReps : max(goal.targetReps, 10)
         let setCount = ex.isCompound ? goal.sets : 3
         let weight = suggestedWeight(for: ex, reps: reps)
@@ -215,6 +229,16 @@ struct WorkoutGenerator {
         if ex.equipment.contains(.dumbbell) { return kg ? 2 : 5 }
         if ex.equipment.contains(.kettlebell) { return kg ? 4 : 5 }
         return kg ? 2.5 : 5
+    }
+
+    /// The exercise to train now on each calisthenics ladder.
+    func currentRungs() -> [String: String] {
+        let available = Set(availableExercises.map(\.id))
+        var out: [String: String] = [:]
+        for ladder in Calisthenics.ladders {
+            if let id = Calisthenics.currentRung(ladder, history: history, available: available) { out[ladder.id] = id }
+        }
+        return out
     }
 
     /// Seconds per hold: start by experience, add 5 s after holding every set for the target last time.

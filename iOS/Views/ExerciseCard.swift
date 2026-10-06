@@ -241,6 +241,15 @@ struct ExerciseCard: View {
             }
             .font(.subheadline)
 
+            if settings.calisthenics, let ladder = Calisthenics.ladder(containing: item.exerciseID),
+               let level = ladder.rungs.firstIndex(of: item.exerciseID) {
+                let next = level + 1 < ladder.rungs.count ? ExerciseLibrary.byID[ladder.rungs[level + 1]]?.name : nil
+                Label("\(ladder.name) level \(level + 1) of \(ladder.rungs.count)"
+                      + (next.map { " · hit \(Calisthenics.goalText(for: item.exerciseID)) to unlock \($0)" } ?? " · top level"),
+                      systemImage: "stairs")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             if let ex = item.exercise, let plates = Plates.summary(total: workingWeight, for: ex, kg: settings.useKilograms) {
                 Label("\(Theme.formatWeight(workingWeight)) \(unit): \(plates)", systemImage: "circle.circle")
                     .font(.caption).foregroundStyle(.secondary)

@@ -19,6 +19,14 @@ struct SettingsView: View {
                     }
                     Toggle("Use kilograms", isOn: $store.settings.useKilograms)
                     Toggle("Pair accessories into supersets", isOn: $store.settings.autoSupersets)
+                    Toggle("Calisthenics track", isOn: $store.settings.calisthenics)
+                    if store.settings.calisthenics {
+                        NavigationLink {
+                            CalisthenicsView()
+                        } label: {
+                            Label("Calisthenics levels", systemImage: "stairs")
+                        }
+                    }
                     Toggle("Weekly weigh-in reminder", isOn: Binding(
                         get: { store.settings.weighInReminder },
                         set: { store.settings.weighInReminder = $0; Reminders.update(enabled: $0) }
@@ -26,7 +34,7 @@ struct SettingsView: View {
                 } header: {
                     Text("You")
                 } footer: {
-                    Text("\(store.settings.experience.displayName) · \(store.settings.goal.displayName). Change your split and days on the Program tab. Supersets: two exercises back to back, then rest; link any two yourself from an exercise's ⋯ menu.")
+                    Text("\(store.settings.experience.displayName) · \(store.settings.goal.displayName). Change your split and days on the Program tab. Supersets: two exercises back to back, then rest; link any two yourself from an exercise's ⋯ menu. Calisthenics track: bodyweight exercises only, and you level up to a harder exercise instead of adding weight.")
                 }
 
                 Section {
@@ -314,6 +322,45 @@ struct PreferencePicker: View {
     private func label(_ id: String) -> String {
         if store.settings.excludedExerciseIDs.contains(id) { return "Never" }
         return store.settings.exercisePreferences[id]?.displayName ?? "Normal"
+    }
+}
+
+/// Each calisthenics skill ladder, with the level you're on and what unlocks the next one.
+struct CalisthenicsView: View {
+    @EnvironmentObject var store: WorkoutStore
+
+    var body: some View {
+        let current = store.generator.currentRungs()
+        let available = Set(store.generator.availableExercises.map(\.id))
+        List {
+            ForEach(Calisthenics.ladders) { ladder in
+                Section {
+                    ForEach(Array(ladder.rungs.enumerated()), id: \.offset) { i, id in
+                        let isCurrent = current[ladder.id] == id
+                        let currentIndex = current[ladder.id].flatMap { ladder.rungs.firstIndex(of: $0) } ?? -1
+                        HStack {
+                            Image(systemName: i < currentIndex ? "checkmark.circle.fill" : (isCurrent ? "largecircle.fill.circle" : "circle"))
+                                .foregroundStyle(i < currentIndex ? ForgeColors.positive : (isCurrent ? Theme.accent : Color.secondary))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ExerciseLibrary.byID[id]?.name ?? id)
+                                    .fontWeight(isCurrent ? .semibold : .regular)
+                                if isCurrent {
+                                    Text(i + 1 < ladder.rungs.count ? "Now · \(Calisthenics.goalText(for: id)) unlocks the next level" : "Top level")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                } else if !available.contains(id) {
+                                    Text("Needs other equipment or is hidden")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text(ladder.name)
+                }
+            }
+        }
+        .forgeScreen()
+        .navigationTitle("Calisthenics")
     }
 }
 
