@@ -289,6 +289,8 @@ struct ExercisePickerView: View {
     @State private var search = ""
     @State private var showAll = false
     @State private var info: FormSheetID?
+    @State private var creating = false
+    @State private var created: Exercise?
     let onPick: (Exercise) -> Void
 
     private var exercises: [Exercise] {
@@ -306,6 +308,10 @@ struct ExercisePickerView: View {
             List {
                 Toggle("Include exercises needing other equipment", isOn: $showAll)
                     .font(.subheadline)
+                Button { creating = true } label: {
+                    Label("Create your own exercise", systemImage: "plus.square.on.square")
+                }
+                .font(.subheadline)
                 ForEach(MuscleGroup.allCases) { group in
                     let items = exercises.filter { $0.group == group }
                     if !items.isEmpty {
@@ -346,6 +352,14 @@ struct ExercisePickerView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             }
             .sheet(item: $info) { FormDetailView(exerciseID: $0.id) }
+            .sheet(isPresented: $creating, onDismiss: {
+                if let ex = created {
+                    onPick(ex)
+                    dismiss()
+                }
+            }) {
+                CustomExerciseEditor(existing: nil) { created = $0 }
+            }
         }
     }
 }

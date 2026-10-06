@@ -408,6 +408,12 @@ struct Exercise: Codable, Identifiable, Hashable, Sendable {
     /// Everything needed to do the exercise.
     let equipment: [Equipment]
     let isCompound: Bool
+    /// Custom exercises: the user's own how-to notes.
+    var notes: String? = nil
+    /// Custom exercises: a built-in exercise whose form animation and cues to borrow.
+    var formLike: String? = nil
+
+    var isCustom: Bool { id.hasPrefix("custom_") }
 
     /// Exercises with no external load are logged as reps only.
     var isBodyweight: Bool {
@@ -466,7 +472,7 @@ struct WorkoutExercise: Codable, Identifiable, Hashable, Sendable {
     }
 
     var exercise: Exercise? { ExerciseLibrary.byID[exerciseID] }
-    var name: String { exercise?.name ?? exerciseID }
+    var name: String { exercise?.name ?? (exerciseID.hasPrefix("custom_") ? "Deleted exercise" : exerciseID) }
     var completedSets: Int { sets.filter(\.done).count }
     var isCardio: Bool { exercise?.isCardio ?? false }
     var cardioMinutes: Double { sets.filter(\.done).compactMap(\.minutes).reduce(0, +) }
@@ -537,6 +543,7 @@ struct UserSettings: Codable, Equatable, Sendable {
     var excludedExerciseIDs: Set<String> = []
     var exercisePreferences: [String: ExercisePreference] = [:]
     var injuries: Set<Injury> = []
+    var customExercises: [Exercise] = []
     var profiles: [EquipmentProfile] = [.gym, .home]
     var activeProfileID: UUID?
     var customMachineMap: [String: String] = [:]
@@ -575,6 +582,7 @@ struct UserSettings: Codable, Equatable, Sendable {
         excludedExerciseIDs = c.value(.excludedExerciseIDs, d.excludedExerciseIDs)
         exercisePreferences = c.value(.exercisePreferences, d.exercisePreferences)
         injuries = c.value(.injuries, d.injuries)
+        customExercises = c.value(.customExercises, d.customExercises)
         profiles = c.value(.profiles, d.profiles)
         activeProfileID = c.value(.activeProfileID, nil)
         customMachineMap = c.value(.customMachineMap, d.customMachineMap)

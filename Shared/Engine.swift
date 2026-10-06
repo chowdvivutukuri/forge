@@ -308,6 +308,7 @@ enum SyncKey {
     static let useKg = "useKg"         // Bool
     static let abhi = "abhi"           // Bool, purple theme
     static let sentAt = "sentAt"       // Double, forces context changes to deliver
+    static let custom = "custom"       // Data (JSON [Exercise]), the user's custom exercises
 }
 
 enum SyncCoding {

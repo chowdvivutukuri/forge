@@ -86,15 +86,21 @@ enum FormLibrary {
         return try? JSONDecoder().decode(FormLibraryData.self, from: data)
     }()
 
+    /// The animation to use: the exercise's own, or for a custom exercise the built-in one it moves like.
+    static func key(_ exerciseID: String) -> String {
+        if shared?.exercises[exerciseID] != nil { return exerciseID }
+        return ExerciseLibrary.byID[exerciseID]?.formLike ?? exerciseID
+    }
+
     static func cues(for exerciseID: String) -> [String] {
-        guard let lib = shared, let ex = lib.exercises[exerciseID] else { return [] }
+        guard let lib = shared, let ex = lib.exercises[key(exerciseID)] else { return [] }
         return lib.cues[ex.p] ?? []
     }
 
     static func tip(for exerciseID: String) -> String? { shared?.tips[exerciseID] }
 
     static func defaultYaw(for exerciseID: String) -> Double {
-        guard let lib = shared, let ex = lib.exercises[exerciseID], let pat = lib.patterns[ex.p] else { return 90 }
+        guard let lib = shared, let ex = lib.exercises[key(exerciseID)], let pat = lib.patterns[ex.p] else { return 90 }
         return pat.defaultYaw
     }
 }
@@ -360,7 +366,7 @@ struct FormFigureView: View {
     var palette = FormPalette()
 
     var body: some View {
-        if let lib = FormLibrary.shared, let ex = lib.exercises[exerciseID], let pat = lib.patterns[ex.p] {
+        if let lib = FormLibrary.shared, let ex = lib.exercises[FormLibrary.key(exerciseID)], let pat = lib.patterns[ex.p] {
             TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !animating)) { context in
                 let time = context.date.timeIntervalSinceReferenceDate
                 let baseYaw = yaw ?? pat.defaultYaw

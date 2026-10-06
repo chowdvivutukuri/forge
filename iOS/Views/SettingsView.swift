@@ -34,6 +34,15 @@ struct SettingsView: View {
                     } label: {
                         Label("Injuries & exercise preferences", systemImage: "bandage")
                     }
+                    NavigationLink {
+                        CustomExercisesView()
+                    } label: {
+                        LabeledContent {
+                            Text("\(store.settings.customExercises.count)")
+                        } label: {
+                            Label("My exercises", systemImage: "plus.square.on.square")
+                        }
+                    }
                 } footer: {
                     Text(preferencesSummary)
                 }
