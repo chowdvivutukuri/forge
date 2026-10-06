@@ -555,6 +555,8 @@ struct UserSettings: Codable, Equatable, Sendable {
     var customExercises: [Exercise] = []
     /// Pair accessory exercises into supersets when generating a workout.
     var autoSupersets: Bool = false
+    /// Bodyweight-only training with level-ups to harder exercises.
+    var calisthenics: Bool = false
     var profiles: [EquipmentProfile] = [.gym, .home]
     var activeProfileID: UUID?
     var customMachineMap: [String: String] = [:]
@@ -595,6 +597,7 @@ struct UserSettings: Codable, Equatable, Sendable {
         injuries = c.value(.injuries, d.injuries)
         customExercises = c.value(.customExercises, d.customExercises)
         autoSupersets = c.value(.autoSupersets, d.autoSupersets)
+        calisthenics = c.value(.calisthenics, d.calisthenics)
         profiles = c.value(.profiles, d.profiles)
         activeProfileID = c.value(.activeProfileID, nil)
         customMachineMap = c.value(.customMachineMap, d.customMachineMap)
