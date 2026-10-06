@@ -106,6 +106,11 @@ enum ExerciseLibrary {
         ex("pallof", "Pallof Press", [.obliques], [.abs], [.cable], compound: false),
         ex("band_pallof", "Band Pallof Press", [.obliques], [.abs], [.bands], compound: false),
         ex("kb_windmill", "Kettlebell Windmill", [.obliques], [.sideDelts, .hamstrings], [.kettlebell], compound: false),
+        ex("plank", "Plank", [.abs], [.obliques, .frontDelts, .glutes], [.bodyweight], compound: false),
+        ex("side_plank", "Side Plank", [.obliques], [.abs, .glutes], [.bodyweight], compound: false),
+        ex("hollow_hold", "Hollow Hold", [.abs], [.obliques], [.bodyweight], compound: false),
+        ex("hanging_knee_raise", "Hanging Knee Raise", [.abs], [.obliques, .forearms], [.pullupBar], compound: false),
+        ex("ab_wheel", "Ab Wheel Rollout", [.abs], [.lats, .obliques], [.abWheel], compound: false),
 
         // Cardio
         ex("tm_walk", "Treadmill Incline Walk", [.glutes, .calves], [.hamstrings], [.treadmill], compound: false),
@@ -114,6 +119,9 @@ enum ExerciseLibrary {
         ex("ell_steady", "Elliptical", [.quads, .glutes], [.hamstrings, .calves], [.elliptical], compound: false),
         ex("ell_intervals", "Elliptical Intervals", [.quads, .glutes], [.hamstrings, .calves], [.elliptical], compound: false),
     ]
+
+    /// Holds measured in seconds instead of reps.
+    static let timedIDs: Set<String> = ["plank", "side_plank", "hollow_hold", "l_sit", "dead_hang"]
 
     /// Exercises the user made. The iPhone and Watch stores set this from saved settings.
     static var custom: [Exercise] = [] {

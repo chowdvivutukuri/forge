@@ -12,6 +12,7 @@ struct FocusWorkoutView: View {
     var onFinish: () -> Void
     var onSwap: (UUID) -> Void
 
+    @State private var holdEnd: Date?
     @State private var editingWeight = false
     @State private var editingReps = false
     @FocusState private var fieldFocused: Bool
@@ -142,6 +143,38 @@ struct FocusWorkoutView: View {
     }
 
     private var isBodyweight: Bool { exercises[safeIndex].exercise?.isBodyweight ?? false }
+    private var isTimed: Bool { exercises[safeIndex].exercise?.isTimed ?? false }
+
+    /// Countdown for holds like the plank; buzzes when the time is up.
+    @ViewBuilder private func holdTimer(seconds: Int) -> some View {
+        if let end = holdEnd, end > Date() {
+            HStack {
+                Image(systemName: "stopwatch")
+                Text(timerInterval: Date()...end, countsDown: true)
+                    .font(.title.bold().monospacedDigit())
+                Spacer()
+                Button("Stop") { holdEnd = nil }
+            }
+            .padding(12)
+            .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .task(id: end) {
+                let wait = end.timeIntervalSinceNow
+                if wait > 0 { try? await Task.sleep(for: .seconds(wait)) }
+                if !Task.isCancelled, holdEnd == end {
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    holdEnd = nil
+                }
+            }
+        } else {
+            Button {
+                holdEnd = Date().addingTimeInterval(TimeInterval(max(1, seconds)))
+            } label: {
+                Label("Start \(seconds)s hold", systemImage: "stopwatch")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+        }
+    }
 
     private var weightStep: Double {
         guard let ex = exercises[safeIndex].exercise else { return store.settings.weightStep }
@@ -176,10 +209,10 @@ struct FocusWorkoutView: View {
                         .keyboardType(.decimalPad))
                 )
                 valueControl(
-                    title: "REPS",
+                    title: isTimed ? "SECONDS" : "REPS",
                     text: "\(set.reps)",
-                    minus: { workout.exercises[safeIndex].sets[s].reps = max(0, set.reps - 1) },
-                    plus: { workout.exercises[safeIndex].sets[s].reps = set.reps + 1 },
+                    minus: { workout.exercises[safeIndex].sets[s].reps = max(0, set.reps - (isTimed ? 5 : 1)) },
+                    plus: { workout.exercises[safeIndex].sets[s].reps = set.reps + (isTimed ? 5 : 1) },
                     editing: $editingReps,
                     field: AnyView(TextField("0", value: Binding(get: { set.reps }, set: { workout.exercises[safeIndex].sets[s].reps = $0 }), format: .number)
                         .keyboardType(.numberPad))
@@ -192,7 +225,12 @@ struct FocusWorkoutView: View {
                     .foregroundStyle(.secondary)
             }
 
+            if isTimed {
+                holdTimer(seconds: set.reps)
+            }
+
             Button {
+                holdEnd = nil
                 editingWeight = false
                 editingReps = false
                 fieldFocused = false

@@ -192,6 +192,11 @@ struct WorkoutGenerator {
 
     func makeEntry(for ex: Exercise) -> WorkoutExercise {
         if ex.isCardio { return makeCardioEntry(for: ex, role: .session) }
+        if ex.isTimed {
+            let secs = holdSeconds(for: ex)
+            return WorkoutExercise(exerciseID: ex.id, sets: (0..<3).map { _ in LoggedSet(reps: secs, weight: 0) },
+                                   restSeconds: 45, targetReps: secs)
+        }
         let goal = settings.goal
         let reps = ex.isCompound ? goal.targetReps : max(goal.targetReps, 10)
         let setCount = ex.isCompound ? goal.sets : 3
@@ -210,6 +215,25 @@ struct WorkoutGenerator {
         if ex.equipment.contains(.dumbbell) { return kg ? 2 : 5 }
         if ex.equipment.contains(.kettlebell) { return kg ? 4 : 5 }
         return kg ? 2.5 : 5
+    }
+
+    /// Seconds per hold: start by experience, add 5 s after holding every set for the target last time.
+    func holdSeconds(for ex: Exercise) -> Int {
+        let start: Int
+        switch settings.experience {
+        case .beginner: start = 20
+        case .intermediate: start = 30
+        case .advanced: start = 45
+        }
+        for workout in history.reversed() where workout.finishedAt != nil {
+            guard let item = workout.exercises.first(where: { $0.exerciseID == ex.id }) else { continue }
+            let done = item.sets.filter(\.done)
+            guard !done.isEmpty else { continue }
+            let target = item.targetReps ?? start
+            let held = done.count >= item.sets.count && done.allSatisfy { $0.reps >= target }
+            return min(120, held ? target + 5 : max(10, done.map(\.reps).max() ?? target))
+        }
+        return start
     }
 
     func minimumWeight(for ex: Exercise) -> Double {

@@ -42,7 +42,7 @@ enum Injury: String, Codable, CaseIterable, Identifiable, Sendable {
             return ["bb_shrug", "db_shrug", "back_squat", "crunch", "bb_ohp"]
         case .lowerBack:
             return ["deadlift", "bb_row", "bb_rdl", "back_squat", "band_good_morning", "kb_swing", "back_ext",
-                    "russian_twist", "front_squat", "bb_shrug"]
+                    "russian_twist", "front_squat", "bb_shrug", "ab_wheel"]
         case .hip:
             return ["split_squat", "db_lunge", "bw_lunge", "deadlift", "back_squat", "copenhagen", "adductor_machine",
                     "abductor_machine"]
@@ -59,7 +59,8 @@ enum Injury: String, Codable, CaseIterable, Identifiable, Sendable {
         switch self {
         case .shoulder:
             return ["db_bench", "db_incline", "pushup", "pullup", "chinup", "db_lateral", "cable_lateral", "db_oh_ext",
-                    "machine_chest", "cable_fly", "bb_row"]
+                    "machine_chest", "cable_fly", "bb_row", "plank", "side_plank", "ab_wheel",
+                    "hanging_knee_raise", "hanging_leg_raise"]
         case .elbow:
             return ["pushdown", "chinup", "pullup", "db_curl", "hammer_curl", "cable_curl", "bb_bench"]
         case .wrist:
