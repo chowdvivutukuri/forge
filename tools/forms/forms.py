@@ -73,8 +73,8 @@ def pat(name, view, a, b, props=(), period=2.6):
 # Squat family (feet planted, hips back and down)
 squat_feet = ik(46, 6, 1, fa=0)
 pat("squat_back", "s",
-    pose(43, 43.6, 88, ik(-4, 1, -1, rel="sh"), squat_feet),
-    pose(30, 23, 52, ik(-4, 1, -1, rel="sh"), squat_feet))
+    pose(43, 43.6, 88, ik(-4, 1, 1, rel="sh"), squat_feet),
+    pose(30, 23, 52, ik(-4, 1, 1, rel="sh"), squat_feet))
 pat("squat_front", "s",
     pose(43, 43.6, 89, ik(5, 0, 1, rel="sh"), squat_feet),
     pose(32, 22, 64, ik(5, 0, 1, rel="sh"), squat_feet))
