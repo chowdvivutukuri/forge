@@ -87,6 +87,7 @@ struct TodayView: View {
             .confirmationDialog("Discard this workout?", isPresented: $confirmDiscard, titleVisibility: .visible) {
                 Button("Discard", role: .destructive) { store.discardCurrent(); restEnd = nil }
             }
+            .onChange(of: restEnd) { _, end in store.setRestEnd(end) }
             .safeAreaInset(edge: .bottom) {
                 if let restEnd, restEnd > Date() {
                     RestBanner(end: restEnd) { self.restEnd = nil }

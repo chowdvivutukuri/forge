@@ -26,6 +26,8 @@ targets:
       # realistic 3D body viewer (three.js + CC0 MakeHuman body), kept as a folder so it ships as FormBody/ in the app
       - path: FormBody
         type: folder
+      # Live Activity data shared with the ForgeWidgets extension
+      - path: Widgets/WorkoutActivityAttributes.swift
     info:
       path: Support/iOS-Info.plist
       properties:
@@ -37,6 +39,7 @@ targets:
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         LSApplicationQueriesSchemes: [spotify]
+        NSSupportsLiveActivities: true
         NSHealthShareUsageDescription: "Forge reads workouts, heart rate and body weight to estimate calories and show your training."
         NSHealthUpdateUsageDescription: "Forge saves your strength workouts and weigh-ins to Apple Health."
     entitlements:
@@ -53,6 +56,7 @@ targets:
         ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         SUPPORTS_MACCATALYST: NO
     dependencies:
+      - target: ForgeWidgets
       - target: ForgeWatch
         embed: true
         copy:
@@ -89,4 +93,24 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: "$(FORGE_BUNDLE_PREFIX).forge.watchkitapp"
         TARGETED_DEVICE_FAMILY: "4"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SKIP_INSTALL: YES
+
+  # Lock-screen and Dynamic Island workout card (Live Activity).
+  ForgeWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widgets
+    info:
+      path: Support/Widgets-Info.plist
+      properties:
+        CFBundleDisplayName: Forge
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: "$(FORGE_BUNDLE_PREFIX).forge.widgets"
+        TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: YES

@@ -20,6 +20,8 @@ final class WorkoutStore: ObservableObject {
     let health = HealthManager()
     let connectivity = PhoneConnectivity()
     let backup = CloudBackup()
+    let liveActivity = LiveActivityManager()
+    private var restEnd: Date?
 
     struct Saved: Codable {
         var settings: UserSettings
@@ -79,6 +81,13 @@ final class WorkoutStore: ObservableObject {
         }
         if let data = snapshot() { backup.scheduleBackup(data) }
         if pushToWatch { connectivity.push(current: current, settings: settings) }
+        liveActivity.sync(current, restEnd: restEnd, settings: settings)
+    }
+
+    /// The rest countdown shown in the app; mirrored on the lock screen.
+    func setRestEnd(_ end: Date?) {
+        restEnd = end
+        liveActivity.sync(current, restEnd: end, settings: settings)
     }
 
     /// Abhi mode: purple everything, including the home-screen icon.
