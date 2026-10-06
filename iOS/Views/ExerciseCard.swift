@@ -188,7 +188,7 @@ struct ExerciseCard: View {
             HStack {
                 Text("SET").frame(width: 34, alignment: .leading)
                 Text(isBodyweight ? "+\(unit)" : unit.uppercased()).frame(maxWidth: .infinity)
-                Text("REPS").frame(maxWidth: .infinity)
+                Text(item.exercise?.isTimed == true ? "SEC" : "REPS").frame(maxWidth: .infinity)
                 Spacer().frame(width: 40)
             }
             .font(.caption2.weight(.semibold))

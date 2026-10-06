@@ -55,7 +55,7 @@ final class LiveActivityManager {
         let set = item.sets[index]
         let weight = set.weight > 0 ? "\(set.weight.formatted(.number.precision(.fractionLength(0...1)))) \(settings.weightUnit) × " : ""
         return .init(exerciseName: item.name, setLabel: "Set \(index + 1) of \(item.sets.count)",
-                     detail: "\(weight)\(set.reps)", completedSets: done, totalSets: total,
+                     detail: item.exercise?.isTimed == true ? "\(set.reps) s hold" : "\(weight)\(set.reps)", completedSets: done, totalSets: total,
                      restEnd: restEnd.flatMap { $0 > Date() ? $0 : nil }, abhi: abhi)
     }
 }

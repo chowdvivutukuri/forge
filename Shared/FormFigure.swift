@@ -270,6 +270,9 @@ enum FormScene {
                         items.append(FormOp(kind: .line, pts: [cg(a), cg(b)], width: 1.1, role: .band, dashed: true, depth: d))
                     }
                 }
+            case "wheel":
+                let a = pr(add(hands[0].0, (0, -2, 0)))
+                items.append(FormOp(kind: .circle, center: cg(a), rx: 3.4, ry: 3.4, role: .plate, depth: a.2 + 0.02))
             case "handle":
                 for (H, _) in hands {
                     let a = pr(H)

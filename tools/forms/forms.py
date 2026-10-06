@@ -327,6 +327,26 @@ pat("copenhagen", "f",
     pose(40, 19.7, 15, ang(-90, 0), st(10, 13, fa=180), leg2=st(4, 24, fa=180), arm2=ik(6, 4, 1, rel="hip")),
     props=bench(0, 15, 21), period=2.6)
 
+# Core holds and rollouts
+# Forearm plank: elbows under shoulders, body in one line; the B pose is a slight breath.
+pat("plank", "s",
+    pose(40, 15.2, 10, ang(-90, 0), st(3.8, 6.5, fa=-35)),
+    pose(40, 15.9, 11, ang(-90, 0), st(3.8, 6.5, fa=-35)), period=3.0)
+pat("side_plank", "f",
+    pose(41.6, 20.2, 15.5, ang(-90, 0), st(5, 10, fa=180), leg2=st(5, 10, fa=180), arm2=ik(6, 4, 1, rel="hip")),
+    pose(41.6, 21.2, 16.4, ang(-90, 0), st(5, 10, fa=180), leg2=st(5, 10, fa=180), arm2=ik(6, 4, 1, rel="hip")),
+    period=3.0)
+pat("hollow_hold", "s",
+    pose(52, 8, 166, ang(168, 172), ang(14, 14, fa=90), leg2=ang(14, 14, fa=90)),
+    pose(52, 8, 162, ang(164, 168), ang(18, 18, fa=90), leg2=ang(18, 18, fa=90)), period=3.0)
+pat("ab_wheel", "s",
+    pose(34, 24.6, 25, ang(-88, -88), ang(-102, 180, fa=180)),
+    pose(47.2, 14, 8, ang(-25, -25), ang(-155, 180, fa=180)), period=3.0)
+pat("hanging_knee_raise", "s",
+    pose(50, 69.5, 90, ik(50, 96, -1), ang(-90, -90, fa=-10), root="sh"),
+    pose(50, 69.5, 96, ik(50, 96, -1), ang(8, -82, fa=0), root="sh"),
+    props=post_bar(50, 96), period=2.4)
+
 # ---------- looping cardio patterns (a full gait cycle instead of A <-> B) ----------
 LOOP_FRAMES = 25
 
@@ -465,6 +485,8 @@ EX = {
     "crunch": ("crunch", NONE), "ab_crunch_machine": ("ab_machine", [HANDLE]), "dead_bug": ("dead_bug", NONE),
     "russian_twist": ("russian_twist", NONE), "pallof": ("pallof", [HANDLE]), "band_pallof": ("pallof", [HANDLE]),
     "kb_windmill": ("windmill", [imp("kettlebell", hands="near")]),
+    "plank": ("plank", NONE), "side_plank": ("side_plank", NONE), "hollow_hold": ("hollow_hold", NONE),
+    "ab_wheel": ("ab_wheel", [imp("wheel", hands="center")]), "hanging_knee_raise": ("hanging_knee_raise", NONE),
     # cardio
     "tm_walk": ("treadmill_walk", NONE), "tm_run": ("treadmill_run", NONE), "tm_intervals": ("treadmill_run", NONE),
     "ell_steady": ("elliptical", [cable(66, 70), imp("pedal")]), "ell_intervals": ("elliptical", [cable(66, 70), imp("pedal")]),
@@ -538,6 +560,11 @@ CUES = {
     "russian_twist": ["Lean back, chest up", "Rotate side to side", "Move from the ribs, not just arms", "Feet down to make it easier"],
     "pallof": ["Stand side-on to the cable/band", "Press straight out from the chest", "Don't let it twist you", "Bring back to chest slowly"],
     "windmill": ["Weight locked out overhead", "Push hips to the side", "Reach down the front leg", "Eyes on the weight"],
+    "plank": ["Elbows under shoulders", "Squeeze glutes, ribs down", "Head to heels in one line", "Breathe — don't let hips sag"],
+    "side_plank": ["Elbow under shoulder", "Feet stacked", "Lift hips into a straight line", "Don't let hips drop or roll"],
+    "hollow_hold": ["Lower back pressed to the floor", "Lift shoulders and legs slightly", "Arms overhead, legs straight", "Bend knees to make it easier"],
+    "ab_wheel": ["Start on knees, wheel under shoulders", "Brace abs, tuck pelvis", "Roll out as far as you can keep a flat back", "Pull back with your abs"],
+    "hanging_knee_raise": ["Hang still, shoulders engaged", "Bring knees up to your chest", "Curl the pelvis at the top", "Lower slowly, no swinging"],
     "copenhagen": ["Top leg on the bench", "Forearm under shoulder", "Lift hips into a straight line", "Hold or pulse slowly"],
 }
 EX_TIPS = {
@@ -901,6 +928,10 @@ def scene(pat, ex, F, yaw):
                     items.append(dict(t="circle", c=(a[0], a[1]), rx=1.5, ry=1.5, role="accent", a=1.0, d=a[2] + 0.02))
                 else:
                     items.append(dict(t="line", pts=[(a[0], a[1]), (b[0], b[1])], w=1.1, role="band", a=1.0, d=d, dash=True))
+        elif t == "wheel":
+            H = hands[0][0]
+            a = pr((H[0], H[1] - 2.0, H[2]))
+            items.append(dict(t="circle", c=(a[0], a[1]), rx=3.4, ry=3.4, role="plate", a=1.0, d=a[2] + 0.02))
         elif t == "handle":
             for H, _ in hands:
                 a = pr(H)

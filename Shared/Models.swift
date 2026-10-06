@@ -73,6 +73,7 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
     // Free weights and stations
     case barbell, dumbbell, kettlebell, bench, pullupBar, dipStation, bands, bodyweight
     // Cables and machines
+    case abWheel
     case cable, smith, legPress, hackSquat, legExtension, legCurl, chestPress, pecDeck, shoulderPress
     case latPulldown, cableRow, rowMachine, assistedPullup, preacher, abductor, adductor, calfMachine
     case abCrunch, backExtension
@@ -83,7 +84,7 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
 
     var id: String { rawValue }
 
-    static let freeWeights: [Equipment] = [.barbell, .dumbbell, .kettlebell, .bench, .pullupBar, .dipStation, .bands]
+    static let freeWeights: [Equipment] = [.barbell, .dumbbell, .kettlebell, .bench, .pullupBar, .dipStation, .bands, .abWheel]
     static let machines: [Equipment] = [.cable, .smith, .legPress, .hackSquat, .legExtension, .legCurl, .chestPress,
                                         .pecDeck, .shoulderPress, .latPulldown, .cableRow, .rowMachine, .assistedPullup,
                                         .preacher, .abductor, .adductor, .calfMachine, .abCrunch, .backExtension]
@@ -99,6 +100,7 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
         case .pullupBar: return "Pull-up Bar"
         case .dipStation: return "Dip Station"
         case .bands: return "Resistance Bands"
+        case .abWheel: return "Ab Wheel"
         case .bodyweight: return "Bodyweight"
         case .cable: return "Cable Station"
         case .smith: return "Smith Machine"
@@ -134,6 +136,7 @@ enum Equipment: String, Codable, CaseIterable, Identifiable, Hashable, Sendable 
         case .pullupBar: return "figure.climbing"
         case .dipStation: return "arrow.down.to.line"
         case .bands: return "lasso"
+        case .abWheel: return "circle.circle"
         case .bodyweight: return "figure.walk"
         case .cable: return "cable.connector"
         case .treadmill: return "figure.run"
@@ -417,8 +420,10 @@ struct Exercise: Codable, Identifiable, Hashable, Sendable {
 
     /// Exercises with no external load are logged as reps only.
     var isBodyweight: Bool {
-        equipment.allSatisfy { [.bodyweight, .pullupBar, .dipStation, .bench, .bands, .assistedPullup].contains($0) }
+        equipment.allSatisfy { [.bodyweight, .pullupBar, .dipStation, .bench, .bands, .assistedPullup, .abWheel].contains($0) }
     }
+    /// Holds like the plank: the "reps" field is seconds.
+    var isTimed: Bool { ExerciseLibrary.timedIDs.contains(id) }
     var usesMachine: Bool { equipment.contains { Equipment.machines.contains($0) } }
     var isCardio: Bool { equipment.contains { Equipment.cardioMachines.contains($0) } }
     var group: MuscleGroup { isCardio ? .cardio : (primary.first?.group ?? .core) }

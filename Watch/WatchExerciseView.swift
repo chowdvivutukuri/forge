@@ -57,7 +57,7 @@ struct WatchExerciseView: View {
                     HStack(spacing: 6) {
                         valueBox(isBodyweight ? "+\(store.unit)" : store.unit,
                                  weight.formatted(.number.precision(.fractionLength(0...1))), .weight)
-                        valueBox("reps", "\(Int(reps))", .reps)
+                        valueBox(item.exercise?.isTimed == true ? "sec" : "reps", "\(Int(reps))", .reps)
                     }
                     if let ex = item.exercise {
                         if number == 1, !item.sets.contains(where: \.done) {
@@ -80,7 +80,7 @@ struct WatchExerciseView: View {
                                 .minimumScaleFactor(0.6)
                         }
                     }
-                    if manager.countedReps > 0, manager.countedReps != Int(reps) {
+                    if manager.countedReps > 0, manager.countedReps != Int(reps), item.exercise?.isTimed != true {
                         // The Watch's motion sensors counted this set; tap to use their count.
                         Button {
                             reps = Double(manager.countedReps)
