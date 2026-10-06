@@ -13,6 +13,10 @@ struct ExerciseCard: View {
     var onExclude: () -> Void
     /// Marks the exercise to be picked more or less often; nil clears it. Hidden from the menu when not set.
     var onPrefer: ((ExercisePreference?) -> Void)? = nil
+    /// "Superset A1" when grouped.
+    var groupLabel: String? = nil
+    var onLinkNext: (() -> Void)? = nil
+    var onUnlink: (() -> Void)? = nil
 
     private var isBodyweight: Bool { item.exercise?.isBodyweight ?? false }
 
@@ -50,6 +54,11 @@ struct ExerciseCard: View {
                 .accessibilityLabel("Show form for \(item.name)")
 
                 VStack(alignment: .leading, spacing: 3) {
+                    if let groupLabel {
+                        Label(groupLabel.uppercased(), systemImage: "link")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Theme.accent)
+                    }
                     Text(item.name).font(.headline)
                     if let ex = item.exercise {
                         Text(ex.primary.map(\.displayName).joined(separator: ", "))
@@ -70,6 +79,12 @@ struct ExerciseCard: View {
                             Button(current == .more ? "✓ More often" : "More often") { onPrefer(current == .more ? nil : .more) }
                             Button(current == .less ? "✓ Less often" : "Less often") { onPrefer(current == .less ? nil : .less) }
                         }
+                    }
+                    if let onLinkNext {
+                        Button(groupLabel == nil ? "Superset with next" : "Add next to this group", systemImage: "link", action: onLinkNext)
+                    }
+                    if groupLabel != nil, let onUnlink {
+                        Button("Take out of superset", systemImage: "link.badge.plus", action: onUnlink)
                     }
                     Button("Never suggest this", systemImage: "hand.thumbsdown", action: onExclude)
                     Button("Remove", systemImage: "trash", role: .destructive, action: onRemove)

@@ -64,9 +64,14 @@ struct WatchWorkoutView: View {
                         }
                     }
 
-                    ForEach(workout.exercises) { item in
+                    ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { index, item in
                         NavigationLink(value: item.id) {
                             VStack(alignment: .leading, spacing: 2) {
+                                if let label = workout.groupLabel(index) {
+                                    Label(label, systemImage: "link")
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(ForgeColors.accent)
+                                }
                                 Text(item.name).font(.headline).lineLimit(2)
                                 Text(item.isCardio ? Cardio.summary(item, settings: store.unitSettings) : "\(item.completedSets)/\(item.sets.count) sets")
                                     .font(.caption)

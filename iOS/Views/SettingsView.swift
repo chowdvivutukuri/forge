@@ -18,6 +18,7 @@ struct SettingsView: View {
                         Label("Profile, goals & targets", systemImage: "person.crop.circle")
                     }
                     Toggle("Use kilograms", isOn: $store.settings.useKilograms)
+                    Toggle("Pair accessories into supersets", isOn: $store.settings.autoSupersets)
                     Toggle("Weekly weigh-in reminder", isOn: Binding(
                         get: { store.settings.weighInReminder },
                         set: { store.settings.weighInReminder = $0; Reminders.update(enabled: $0) }
@@ -25,7 +26,7 @@ struct SettingsView: View {
                 } header: {
                     Text("You")
                 } footer: {
-                    Text("\(store.settings.experience.displayName) · \(store.settings.goal.displayName). Change your split and days on the Program tab.")
+                    Text("\(store.settings.experience.displayName) · \(store.settings.goal.displayName). Change your split and days on the Program tab. Supersets: two exercises back to back, then rest; link any two yourself from an exercise's ⋯ menu.")
                 }
 
                 Section {

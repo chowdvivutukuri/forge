@@ -210,7 +210,15 @@ struct TodayView: View {
                         unit: store.settings.weightUnit,
                         settings: store.settings,
                         bodyKg: store.latestWeightKg ?? 75,
-                        onSetCompleted: { rest in restEnd = Date().addingTimeInterval(TimeInterval(rest)) },
+                        onSetCompleted: { rest in
+                            // In a superset, rest only after the last exercise of the round.
+                            guard let w = store.current, let i = w.exercises.firstIndex(where: { $0.id == item.id }) else { return }
+                            if !w.isGrouped(i) {
+                                restEnd = Date().addingTimeInterval(TimeInterval(rest))
+                            } else if w.groupIndices(of: i).last == i {
+                                restEnd = Date().addingTimeInterval(TimeInterval(w.roundRest(i)))
+                            }
+                        },
                         onShowForm: { formExercise = item.exerciseID },
                         onSwap: { store.swap(itemID: item.id) },
                         onChoose: { pickerTarget = .replace(item.id) },
@@ -219,7 +227,10 @@ struct TodayView: View {
                             store.excludeExercise(item.exerciseID)
                             store.swap(itemID: item.id)
                         },
-                        onPrefer: { store.settings.exercisePreferences[item.exerciseID] = $0 }
+                        onPrefer: { store.settings.exercisePreferences[item.exerciseID] = $0 },
+                        groupLabel: groupLabel(item.id),
+                        onLinkNext: isLast(item.id) ? nil : { store.linkWithNext(itemID: item.id) },
+                        onUnlink: { store.unlink(itemID: item.id) }
                     )
                 }
             }
@@ -359,4 +370,14 @@ struct RestBanner: View {
             }
         }
     }
+}
+
+extension TodayView {
+
+    fileprivate func groupLabel(_ id: UUID) -> String? {
+        guard let w = store.current, let i = w.exercises.firstIndex(where: { $0.id == id }) else { return nil }
+        return w.groupLabel(i)
+    }
+
+    fileprivate func isLast(_ id: UUID) -> Bool { store.current?.exercises.last?.id == id }
 }

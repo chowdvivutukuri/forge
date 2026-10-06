@@ -452,11 +452,14 @@ struct WorkoutExercise: Codable, Identifiable, Hashable, Sendable {
     var note: String?
     /// Cardio target minutes when it was planned.
     var targetMinutes: Double?
+    /// Neighbouring exercises with the same group are a superset (2) or circuit (3+).
+    var groupID: UUID?
 
     init(id: UUID = UUID(), exerciseID: String, sets: [LoggedSet], restSeconds: Int, suggestedWeight: Double? = nil,
-         targetReps: Int? = nil, note: String? = nil, targetMinutes: Double? = nil) {
+         targetReps: Int? = nil, note: String? = nil, targetMinutes: Double? = nil, groupID: UUID? = nil) {
         self.id = id; self.exerciseID = exerciseID; self.sets = sets; self.restSeconds = restSeconds
         self.suggestedWeight = suggestedWeight; self.targetReps = targetReps; self.note = note; self.targetMinutes = targetMinutes
+        self.groupID = groupID
     }
 
     init(from decoder: Decoder) throws {
@@ -469,6 +472,7 @@ struct WorkoutExercise: Codable, Identifiable, Hashable, Sendable {
         targetReps = c.value(.targetReps, nil)
         note = c.value(.note, nil)
         targetMinutes = c.value(.targetMinutes, nil)
+        groupID = c.value(.groupID, nil)
     }
 
     var exercise: Exercise? { ExerciseLibrary.byID[exerciseID] }
@@ -544,6 +548,8 @@ struct UserSettings: Codable, Equatable, Sendable {
     var exercisePreferences: [String: ExercisePreference] = [:]
     var injuries: Set<Injury> = []
     var customExercises: [Exercise] = []
+    /// Pair accessory exercises into supersets when generating a workout.
+    var autoSupersets: Bool = false
     var profiles: [EquipmentProfile] = [.gym, .home]
     var activeProfileID: UUID?
     var customMachineMap: [String: String] = [:]
@@ -583,6 +589,7 @@ struct UserSettings: Codable, Equatable, Sendable {
         exercisePreferences = c.value(.exercisePreferences, d.exercisePreferences)
         injuries = c.value(.injuries, d.injuries)
         customExercises = c.value(.customExercises, d.customExercises)
+        autoSupersets = c.value(.autoSupersets, d.autoSupersets)
         profiles = c.value(.profiles, d.profiles)
         activeProfileID = c.value(.activeProfileID, nil)
         customMachineMap = c.value(.customMachineMap, d.customMachineMap)

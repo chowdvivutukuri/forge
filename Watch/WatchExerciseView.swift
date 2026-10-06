@@ -6,6 +6,9 @@ struct WatchExerciseView: View {
     @EnvironmentObject var store: WatchStore
     @EnvironmentObject var manager: WatchWorkoutManager
     let itemID: UUID
+    /// In a superset the view moves on to the next exercise of the round.
+    @State private var activeID: UUID?
+    private var currentID: UUID { activeID ?? itemID }
 
     enum Field { case weight, reps }
 
@@ -15,7 +18,7 @@ struct WatchExerciseView: View {
     @State private var restEnd: Date?
     @State private var showForm = false
 
-    private var item: WorkoutExercise? { store.workout?.exercises.first { $0.id == itemID } }
+    private var item: WorkoutExercise? { store.workout?.exercises.first { $0.id == currentID } }
     private var nextSet: LoggedSet? { item?.sets.first { !$0.done } }
     private var isBodyweight: Bool { item?.exercise?.isBodyweight ?? false }
 
@@ -30,9 +33,14 @@ struct WatchExerciseView: View {
 
     var body: some View {
         if let item, item.isCardio {
-            WatchCardioView(itemID: itemID)
+            WatchCardioView(itemID: currentID)
         } else if let item {
             VStack(spacing: 6) {
+                if let w = store.workout, let i = w.exercises.firstIndex(where: { $0.id == currentID }), let label = w.groupLabel(i) {
+                    Label(label, systemImage: "link")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(ForgeColors.accent)
+                }
                 Text(item.name)
                     .font(.headline)
                     .lineLimit(2)
@@ -84,10 +92,17 @@ struct WatchExerciseView: View {
                         .foregroundStyle(ForgeColors.accent)
                     }
                     Button {
-                        store.logSet(itemID: itemID, setID: next.id, reps: Int(reps), weight: weight)
+                        store.logSet(itemID: currentID, setID: next.id, reps: Int(reps), weight: weight)
                         WKInterfaceDevice.current().play(.success)
                         manager.resetReps()
-                        if item.sets.filter({ !$0.done }).count > 1 {
+                        if let w = store.workout, let i = w.exercises.firstIndex(where: { $0.id == currentID }), w.isGrouped(i) {
+                            // Superset / circuit: on to the next exercise, rest after the round.
+                            let step = w.afterSet(at: i)
+                            if let n = step.next { activeID = w.exercises[n].id }
+                            if step.rest, step.next != nil {
+                                restEnd = Date().addingTimeInterval(TimeInterval(w.roundRest(i)))
+                            }
+                        } else if item.sets.filter({ !$0.done }).count > 1 {
                             restEnd = Date().addingTimeInterval(TimeInterval(item.restSeconds))
                         }
                     } label: {
@@ -98,8 +113,8 @@ struct WatchExerciseView: View {
                     Label("All sets done", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(ForgeColors.positive)
                     HStack {
-                        Button("Add Set") { store.addSet(itemID: itemID) }
-                        Button("Undo") { store.undoLastSet(itemID: itemID) }
+                        Button("Add Set") { store.addSet(itemID: currentID) }
+                        Button("Undo") { store.undoLastSet(itemID: currentID) }
                     }
                     .font(.footnote)
                 }

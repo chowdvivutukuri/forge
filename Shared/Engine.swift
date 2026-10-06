@@ -131,7 +131,22 @@ struct WorkoutGenerator {
         let ordered = chosen.filter(\.isCompound) + chosen.filter { !$0.isCompound }
         var title = focus.displayName
         if let d = programDay { title = "Day \(d + 1) · \(focus.displayName)" }
-        return Workout(title: title, exercises: ordered.map { makeEntry(for: $0) },
+        var entries = ordered.map { makeEntry(for: $0) }
+        if settings.autoSupersets {
+            // Pair up the accessories (they come after the compound lifts), each pair working different muscles.
+            var i = ordered.firstIndex { !$0.isCompound } ?? ordered.count
+            while i + 1 < ordered.count {
+                if Set(ordered[i].primary).isDisjoint(with: ordered[i + 1].primary) {
+                    let g = UUID()
+                    entries[i].groupID = g
+                    entries[i + 1].groupID = g
+                    i += 2
+                } else {
+                    i += 1
+                }
+            }
+        }
+        return Workout(title: title, exercises: entries,
                        equipmentProfileName: settings.activeProfile.name, programDay: programDay)
     }
 
